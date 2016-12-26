@@ -1,3 +1,4 @@
+<?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
 
   <f:entry title="${%Sign APKs}">
@@ -9,14 +10,12 @@
         <f:entry field="keystore" title="${%Keystore}">
           <f:select value="${apks.keystore}" />
         </f:entry>
-                <f:entry field="alias" title="${%Key Alias}">
-                  <f:textbox value="${apks.alias}" />
-                </f:entry>
-
+        <f:entry field="alias" title="${%Key Alias}">
+          <f:textbox value="${apks.alias}" />
+        </f:entry>
         <f:entry field="selection" title="${%Includes}">
           <f:textbox value="${apks.selection}" />
         </f:entry>
-
         <f:entry title="">
           <div align="right">
             <f:repeatableDeleteButton />
