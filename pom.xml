@@ -1,80 +1,113 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-        <modelVersion>4.0.0</modelVersion>
-        <parent>
-                <groupId>org.jenkins-ci.plugins</groupId>
-                <artifactId>plugin</artifactId>
-                <version>1.532.3</version><!-- which version of Jenkins is this plugin built against? Users must have at least this Jenkins version to use this plugin. -->
-        </parent>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.jenkins-ci.plugins</groupId>
+    <artifactId>plugin</artifactId>
+    <version>2.11</version>
+    <relativePath/>
+  </parent>
 
-        <artifactId>android-signing</artifactId>
-        <version>1.1-SNAPSHOT</version>
-        <packaging>hpi</packaging>
-        <name>Android Signing Plugin</name>
-        <description>Allows for signing of Android applications.</description>
+  <artifactId>android-signing</artifactId>
+  <version>1.1-SNAPSHOT</version>
+  <packaging>hpi</packaging>
+  <name>Android Signing Plugin</name>
+  <description>Allows for signing of Android applications.</description>
+  <url>http://wiki.jenkins-ci.org/display/JENKINS/Android+Signing</url>
 
-        <url>http://wiki.jenkins-ci.org/display/JENKINS/Android+Signing</url>
-        <licenses>
-                <license>
-                        <name>MIT License</name>
-                        <url>http://opensource.org/licenses/MIT</url>
-                </license>
-        </licenses>
-        <distributionManagement>
-                <repository>
-                        <id>maven.jenkins-ci.org</id>
-                        <url>http://maven.jenkins-ci.org:8081/content/repositories/releases/</url>
-                </repository>
-        </distributionManagement>
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>http://opensource.org/licenses/MIT</url>
+    </license>
+  </licenses>
 
-        <developers>
-                <developer>
-                        <id>kurtisnelson</id>
-                        <name>Kurt Nelson</name>
-                        <organization>Big Nerd Ranch</organization>
-                        <email>kurtisnelson@gmail.com</email>
-                </developer>
-        </developers>
+  <properties>
+    <!-- Baseline Jenkins version you use to build the plugin. Users must have this version or newer to run. -->
+    <jenkins.version>1.625.3</jenkins.version>
+    <!-- Java Level to use. Java 7 required when using core >= 1.612 -->
+    <java.level>8</java.level>
+    <!-- Jenkins Test Harness version you use to test the plugin. -->
+    <!-- For Jenkins version >= 1.580.1 use JTH 2.x or higher. -->
+    <jenkins-test-harness.version>2.13</jenkins-test-harness.version>
+    <!-- Other properties you may want to use:
+         ~ hpi-plugin.version: The HPI Maven Plugin version used by the plugin..
+         ~ stapler-plugin.version: The Stapler Maven plugin version required by the plugin.
+    -->
+  </properties>
 
-        <scm>
-                <connection>scm:git:ssh://github.com/bignerdranch/jenkins-android-signing.git</connection>
-                <developerConnection>scm:git:ssh://git@github.com/bignerdranch/jenkins-android-signing.git</developerConnection>
-                <url>https://github.com/bignerdranch/jenkins-android-signing</url>
-        </scm>
+  <distributionManagement>
+    <repository>
+      <id>maven.jenkins-ci.org</id>
+      <url>http://maven.jenkins-ci.org:8081/content/repositories/releases/</url>
+    </repository>
+  </distributionManagement>
 
-        <!-- get every artifact through repo.jenkins-ci.org, which proxies all the artifacts that we need -->
-        <repositories>
-                <repository>
-                        <id>repo.jenkins-ci.org</id>
-                        <url>http://repo.jenkins-ci.org/public/</url>
-                </repository>
-        </repositories>
+  <developers>
+    <developer>
+      <id>kurtisnelson</id>
+      <name>Kurt Nelson</name>
+      <organization>Big Nerd Ranch</organization>
+      <email>kurtisnelson@gmail.com</email>
+    </developer>
+    <developer>
+      <id>restjohn</id>
+      <name>Robert St. John</name>
+      <organization>BIT Systems</organization>
+      <email>restjohn@gmail.com</email>
+    </developer>
+  </developers>
 
-        <pluginRepositories>
-                <pluginRepository>
-                        <id>repo.jenkins-ci.org</id>
-                        <url>http://repo.jenkins-ci.org/public/</url>
-                </pluginRepository>
-        </pluginRepositories>
+  <scm>
+    <connection>scm:git:ssh://github.com/restjohn/jenkins-android-signing.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/restjohn/jenkins-android-signing.git</developerConnection>
+    <url>https://github.com/restjohn/jenkins-android-signing</url>
+  </scm>
 
-        <dependencies>
-                <dependency>
-                        <groupId>org.jenkins-ci.plugins</groupId>
-                        <artifactId>credentials</artifactId>
-                        <version>1.14</version>
-                </dependency>
-        </dependencies>
-        <build>
-                <plugins>
-                        <plugin>
-                                <groupId>org.jenkins-ci.tools</groupId>
-                                <artifactId>maven-hpi-plugin</artifactId>
-                                <configuration>
-                                        <compatibleSinceVersion>1.0-beta-4</compatibleSinceVersion>
-                                        <loggers>
-                                                <org.jenkinsci.plugins.plaincredentials>FINE</org.jenkinsci.plugins.plaincredentials>
-                                        </loggers>
-                                </configuration>
-                        </plugin>
-                </plugins>
-        </build>
+  <!-- get every artifact through repo.jenkins-ci.org, which proxies all the artifacts that we need -->
+  <repositories>
+    <repository>
+      <id>repo.jenkins-ci.org</id>
+      <url>http://repo.jenkins-ci.org/public/</url>
+    </repository>
+    <repository>
+      <id>jcenter</id>
+      <url>http://jcenter.bintray.com/</url>
+    </repository>
+  </repositories>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <id>repo.jenkins-ci.org</id>
+      <url>http://repo.jenkins-ci.org/public/</url>
+    </pluginRepository>
+  </pluginRepositories>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>credentials</artifactId>
+      <version>2.1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.android.tools.build</groupId>
+      <artifactId>apksig</artifactId>
+      <version>2.3.0-beta1</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.jenkins-ci.tools</groupId>
+        <artifactId>maven-hpi-plugin</artifactId>
+        <configuration>
+          <compatibleSinceVersion>1.100</compatibleSinceVersion>
+          <!--<loggers>-->
+            <!--<org.jenkinsci.plugins.plaincredentials>FINE</org.jenkinsci.plugins.plaincredentials>-->
+          <!--</loggers>-->
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>
