@@ -141,11 +141,12 @@ public class SignArtifactPlugin extends Builder implements SimpleBuildStep {
                         if (StringUtils.isEmpty(zipalign)) {
                             throw new AbortException("You must set the environmental variable ANDROID_ZIPALIGN to point to the correct binary");
                         }
-                        ArgumentListBuilder zipalignCommand = new ArgumentListBuilder();
-                        zipalignCommand.add(zipalign);
-                        zipalignCommand.add("-v -p 4");
-                        zipalignCommand.add(unsignedPath);
-                        zipalignCommand.add(alignedPath);
+                        ArgumentListBuilder zipalignCommand = new ArgumentListBuilder()
+                            .add(zipalign)
+                            .add("-v")
+                            .add("-p").add("4")
+                            .add(unsignedPath)
+                            .add(alignedPath);
 
                         Launcher.ProcStarter zipalignStarter = launcher.new ProcStarter()
                                 .cmds(zipalignCommand)
