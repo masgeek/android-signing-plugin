@@ -54,14 +54,14 @@ import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 import jenkins.util.BuildListenerAdapter;
 
-public class SignArtifactPlugin extends Builder implements SimpleBuildStep {
+public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
     private static final List<DomainRequirement> NO_REQUIREMENTS = Collections.emptyList();
 
     private List<Apk> entries = Collections.emptyList();
 
     @DataBoundConstructor
-    public SignArtifactPlugin(List<Apk> apks) {
+    public SignApksBuilder(List<Apk> apks) {
         this.entries = apks;
         if (this.entries == null) {
             this.entries = Collections.emptyList();
