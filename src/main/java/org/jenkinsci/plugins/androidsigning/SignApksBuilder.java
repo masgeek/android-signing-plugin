@@ -1,7 +1,6 @@
 package org.jenkinsci.plugins.androidsigning;
 
 import com.android.apksig.ApkSigner;
-import com.android.apksig.apk.ApkFormatException;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
@@ -17,11 +16,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.security.GeneralSecurityException;
-import java.security.InvalidKeyException;
 import java.security.KeyStore;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
-import java.security.SignatureException;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -39,7 +35,6 @@ import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Proc;
 import hudson.model.AbstractProject;
-import hudson.model.Computer;
 import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.Run;
