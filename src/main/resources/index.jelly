@@ -3,5 +3,5 @@
   This view is used to render the installed plugins page.
 -->
 <div>
-  Allows signing of Android APKs post-build
+  Sign Android APK bundles with a private key Jenkins manages and provides.
 </div>
