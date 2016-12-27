@@ -206,7 +206,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
     @Extension
     @SuppressWarnings("unused")
-    public static final class SignArtifactDescriptor extends BuildStepDescriptor<Builder> {
+    public static final class SignApksDescriptor extends BuildStepDescriptor<Builder> {
 
         public static final String DISPLAY_NAME = Messages.job_displayName();
 
@@ -215,7 +215,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             return true;
         }
 
-        public SignArtifactDescriptor() {
+        public SignApksDescriptor() {
             super();
             load();
         }
@@ -252,7 +252,6 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                 return FormValidation.warning(Messages.noworkspace());
             }
         }
-
     }
 
 }
