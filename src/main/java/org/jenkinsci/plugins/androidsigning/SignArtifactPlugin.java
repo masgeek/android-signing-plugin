@@ -1,7 +1,6 @@
 package org.jenkinsci.plugins.androidsigning;
 
 import com.android.apksig.ApkSigner;
-import com.android.apksig.ApkSignerEngine;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
@@ -13,42 +12,44 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.security.GeneralSecurityException;
 import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
-import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 
+import javax.annotation.Nonnull;
+
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Proc;
-import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
 import hudson.model.Computer;
 import hudson.model.Item;
 import hudson.model.Result;
+import hudson.model.Run;
+import hudson.model.TaskListener;
 import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
-import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Builder;
 import hudson.util.ArgumentListBuilder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
+import jenkins.tasks.SimpleBuildStep;
 
-public class SignArtifactPlugin extends Builder {
+public class SignArtifactPlugin extends Builder implements SimpleBuildStep {
 
     private static final List<DomainRequirement> NO_REQUIREMENTS = Collections.emptyList();
 
@@ -62,17 +63,9 @@ public class SignArtifactPlugin extends Builder {
         }
     }
 
-    public BuildStepMonitor getRequiredMonitorService() {
-        return BuildStepMonitor.NONE;
-    }
-
-    private boolean isPerformDeployment(AbstractBuild build) {
+    private boolean isIntermediateFailure(Run build) {
         Result result = build.getResult();
-        if (result == null) {
-            return true;
-        }
-
-        return build.getResult().isBetterOrEqualTo(Result.UNSTABLE);
+        return result != null && build.getResult().isWorseThan(Result.UNSTABLE);
     }
 
     @SuppressWarnings("unused")
@@ -81,18 +74,44 @@ public class SignArtifactPlugin extends Builder {
     }
 
     @Override
-    public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-        if (!isPerformDeployment(build)) {
+    public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath workspace, @Nonnull Launcher launcher, @Nonnull TaskListener listener) throws InterruptedException, IOException {
+        if (isIntermediateFailure(run)) {
             listener.getLogger().println("[AndroidSignPlugin] - Skipping signing APKs ...");
+            return;
         }
+
 
         for (Apk entry : entries) {
             StringTokenizer rpmGlobTokenizer = new StringTokenizer(entry.getSelection(), ",");
-            StandardCertificateCredentials keystore = getKeystore(entry.getKeyStore(), build.getProject());
             listener.getLogger().println("[AndroidSignPlugin] - Signing " + rpmGlobTokenizer.countTokens() + " APKs");
+
+            StandardCertificateCredentials keyStoreCredential = getKeystore(entry.getKeyStore(), run.getParent());
+            char[] storePassword = keyStoreCredential.getPassword().getPlainText().toCharArray();
+            // TODO: add key password support
+            char[] keyPassword = storePassword;
+            KeyStore keyStore = keyStoreCredential.getKeyStore();
+            PrivateKey key;
+            ArrayList<X509Certificate> certs = new ArrayList<>();
+            try {
+                key = (PrivateKey)keyStore.getKey(entry.getAlias(), keyPassword);
+                Certificate[] certChain = keyStore.getCertificateChain(entry.getAlias());
+                for (Certificate cert : certChain) {
+                    certs.add((X509Certificate)cert);
+                }
+            }
+            // TODO: proper error handling in jenkins
+            catch (GeneralSecurityException e) {
+                PrintWriter details = listener.fatalError("Error reading keystore " + entry.getKeyStore());
+                e.printStackTrace(details);
+                throw new RuntimeException("Error reading keystore " + entry.getKeyStore(), e);
+            }
+            // TODO: signer config name
+            ApkSigner.SignerConfig signerConfig = new ApkSigner.SignerConfig.Builder("", key, certs).build();
+            List<ApkSigner.SignerConfig> signerConfigs = Collections.singletonList(signerConfig);
+
             while (rpmGlobTokenizer.hasMoreTokens()) {
                 String rpmGlob = rpmGlobTokenizer.nextToken();
-                FilePath[] matchedApks = build.getWorkspace().list(rpmGlob);
+                FilePath[] matchedApks = workspace.list(rpmGlob);
                 if (ArrayUtils.isEmpty(matchedApks)) {
                     listener.getLogger().println("[AndroidSignPlugin] - No APKs matching " + rpmGlob);
                 }
@@ -103,34 +122,16 @@ public class SignArtifactPlugin extends Builder {
                         String cleanPath = rpmFilePath.toURI().normalize().getPath();
                         String signedPath = cleanPath.replace("unsigned", "signed");
                         String alignedPath = signedPath.replace("signed", "signed-aligned");
+                        File inputApk = new File(rpmFilePath.getRemote());
+                        File outputApk = new File(alignedPath);
 
-                        StandardCertificateCredentials keyStoreCredential = getKeystore(entry.getKeyStore(), build.getProject());
-                        char[] storePassword = keyStoreCredential.getPassword().getPlainText().toCharArray();
-                        // TODO: add key password support
-                        char[] keyPassword = storePassword;
-                        KeyStore keyStore = keyStoreCredential.getKeyStore();
-                        PrivateKey key = null;
-                        ArrayList<X509Certificate> certs = new ArrayList<>();
-                        try {
-                            key = (PrivateKey)keyStore.getKey(entry.getAlias(), keyPassword);
-                            Certificate[] certChain = keyStore.getCertificateChain(entry.getAlias());
-                            for (Certificate cert : certChain) {
-                                certs.add((X509Certificate)cert);
-                            }
-                        }
-                        // TODO: proper error handling in jenkins
-                        catch (KeyStoreException e) {
-                            e.printStackTrace();
-                        }
-                        catch (NoSuchAlgorithmException e) {
-                            e.printStackTrace();
-                        }
-                        catch (UnrecoverableKeyException e) {
-                            e.printStackTrace();
-                        }
-                        ApkSigner.SignerConfig signerConfig = new ApkSigner.SignerConfig.Builder("", key, certs).build();
-                        List<ApkSigner.SignerConfig> signerConfigs = Collections.singletonList(signerConfig);
-                        ApkSigner.Builder signerBuilder = new ApkSigner.Builder(signerConfigs);
+                        ApkSigner.Builder signerBuilder = new ApkSigner.Builder(signerConfigs)
+                            .setInputApk(inputApk)
+                            .setOutputApk(outputApk)
+                            .setOtherSignersSignaturesPreserved(false)
+                            // TODO: add to jenkins descriptor
+                            .setV1SigningEnabled(true)
+                            .setV2SigningEnabled(true);
 
 //                        FilePath key = keystore.makeTempPath(build.getWorkspace());
 //
@@ -149,20 +150,20 @@ public class SignArtifactPlugin extends Builder {
 
                         Launcher.ProcStarter ps = launcher.new ProcStarter();
                         ps = ps.cmds(apkSignCommand).stdout(listener);
-                        ps = ps.pwd(rpmFilePath.getParent()).envs(build.getEnvironment(listener));
+                        ps = ps.pwd(rpmFilePath.getParent()).envs(run.getEnvironment(listener));
                         Proc proc = launcher.launch(ps);
 
                         int retcode = proc.join();
                         if (retcode != 0) {
                             listener.getLogger().println("[AndroidSignPlugin] - Failed signing APK");
-                            return false;
+                            return;
                         }
 
                         Map<String,String> artifactsInsideWorkspace = new LinkedHashMap<String,String>();
-                        artifactsInsideWorkspace.put(signedPath, stripWorkspace(build.getWorkspace(), signedPath));
+                        artifactsInsideWorkspace.put(signedPath, stripWorkspace(workspace, signedPath));
 
                         ///opt/android-sdk/build-tools/20.0.0/zipalign
-                        String zipalign = build.getEnvironment(listener).get("ANDROID_ZIPALIGN");
+                        String zipalign = run.getEnvironment(listener).get("ANDROID_ZIPALIGN");
                         if (zipalign == null || StringUtils.isEmpty(zipalign)) {
                             throw new RuntimeException("You must set the environmental variable ANDROID_ZIPALIGN to point to the correct binary");
                         }
@@ -174,24 +175,21 @@ public class SignArtifactPlugin extends Builder {
 
                         Launcher.ProcStarter ps2 = launcher.new ProcStarter();
                         ps2 = ps2.cmds(zipalignCommand).stdout(listener);
-                        ps2 = ps2.pwd(rpmFilePath.getParent()).envs(build.getEnvironment(listener));
+                        ps2 = ps2.pwd(rpmFilePath.getParent()).envs(run.getEnvironment(listener));
                         Proc proc2 = launcher.launch(ps2);
                         retcode = proc2.join();
                         if(retcode != 0) {
                             listener.getLogger().println("[AndroidSignPlugin] - Failed aligning APK");
-                            return true;
+                            return;
                         }
-                        artifactsInsideWorkspace.put(alignedPath, stripWorkspace(build.getWorkspace(), alignedPath));
-                        build.pickArtifactManager().archive(build.getWorkspace(), launcher, listener, artifactsInsideWorkspace);
+                        artifactsInsideWorkspace.put(alignedPath, stripWorkspace(workspace, alignedPath));
+                        run.pickArtifactManager().archive(workspace, launcher, (BuildListener)listener, artifactsInsideWorkspace);
                     }
-
                 }
             }
         }
 
         listener.getLogger().println("[AndroidSignPlugin] - Finished signing APKs ...");
-
-        return true;
     }
 
     private void signApks(FilePath[] matchedApks, StandardCertificateCredentials keystore) {
