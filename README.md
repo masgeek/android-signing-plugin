@@ -28,3 +28,4 @@ binary provided with the Android Build Tools SDK package, .e.g, `${ANDROID_HOME}
 This therefore implies that whatever Jenkins node is performing the build has
 access to an installed Android SDK.
 
+See the NOTICE text file for original Work and Derivative Work copyright and license information.

@@ -1,3 +1,15 @@
+/*
+ ===========================================================
+ Apache License, Version 2.0 - Derivative Work modified file
+ -----------------------------------------------------------
+ This file has been modified by BIT Systems.
+ All modifications are copyright (c) BIT Systems, 2016.
+ ===========================================================
+
+ This file was originally named SignArtifactsPlugin.java.  The contents of this
+ file have been signifcantly modified from the Original Work contents.
+ */
+
 package org.jenkinsci.plugins.androidsigning;
 
 import com.android.apksig.ApkSigner;
@@ -30,6 +42,7 @@ import java.util.StringTokenizer;
 import javax.annotation.Nonnull;
 
 import hudson.AbortException;
+import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
@@ -136,6 +149,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                         if (StringUtils.isEmpty(zipalign)) {
                             throw new AbortException("You must set the environmental variable ANDROID_ZIPALIGN to point to the correct binary");
                         }
+
                         ArgumentListBuilder zipalignCommand = new ArgumentListBuilder()
                             .add(zipalign)
                             .add("-v")
@@ -144,10 +158,10 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                             .add(alignedPath);
 
                         Launcher.ProcStarter zipalignStarter = launcher.new ProcStarter()
-                                .cmds(zipalignCommand)
-                                .pwd(apkPath.getParent())
-                                .envs(run.getEnvironment(listener))
-                                .stdout(listener);
+                            .cmds(zipalignCommand)
+                            .pwd(apkPath.getParent())
+                            .envs(run.getEnvironment(listener))
+                            .stdout(listener);
 
                         Proc zipalignProc = launcher.launch(zipalignStarter);
                         int zipalignResult = zipalignProc.join();
@@ -183,10 +197,6 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         }
 
         listener.getLogger().println("[AndroidSignPlugin] - Finished signing APKs ...");
-    }
-
-    private void signApks(FilePath[] matchedApks, StandardCertificateCredentials keystore) {
-
     }
 
     private String stripWorkspace(FilePath ws, String path) {
