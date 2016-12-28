@@ -7,7 +7,7 @@
  ===========================================================
 
  This file was originally named SignArtifactsPlugin.java.  The contents of this
- file have been signifcantly modified from the Original Work contents.
+ file have been signifcantly modified from the original Work contents.
  */
 
 package org.jenkinsci.plugins.androidsigning;
@@ -42,7 +42,6 @@ import java.util.StringTokenizer;
 import javax.annotation.Nonnull;
 
 import hudson.AbortException;
-import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
