@@ -1,14 +1,22 @@
 Jenkins Android Signing Plugin
 ============
 
-The Android Signing plugin provides a simple build step for [signing Android APK](https://developer.android.com/studio/publish/app-signing.html#signing-manually)
+## Summary and Purpose
+
+The Android Signing plugin provides a simple build step for 
+[signing Android APK](https://developer.android.com/studio/publish/app-signing.html#signing-manually)
 build artifacts.  The advantage of this plugin is that you can use Jenkins to
 centrally manage, protect, and provide all of your Android release signing
 certificates without the need to distribute private keys and passwords to
 every developer.  This is especially useful in multi-node/cloud environments
-so you do not need to copy the signing keystore to every Jenkins node. This
-plugin also does not use a shell command to perform the signing, eliminating
-the potential that private key passwords appear on a command-line invocation.
+so you do not need to copy the signing keystore to every Jenkins node.
+Furthermore, using this plugin externalizes your keystore and private key 
+passwords from your build script, and keeps them encrypted rather than storing
+them in a plain-text properties file.  This plugin also does not use a shell 
+command to perform the signing, eliminating the potential that private key 
+passwords appear on a command-line invocation.
+
+## Background
 
 This version is a fork from Big Nerd Ranch's now deprecated
 [original repository](https://github.com/bignerdranch/jenkins-android-signing)
