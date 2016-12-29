@@ -64,6 +64,14 @@ credential you created previously, supply the alias of the private key and
 certificate chain, and finally supply the name or glob pattern specifying the
 APK files relative to the workspace you want to sign.
 
+Note that this plugin assumes your Android build has produced an unsigned, 
+unaligned APK.  If you are using the Gradle Android plugin, this means that
+a previous Gradle build step invoked the `assembleRelease` task on your build
+script and there were no `signingConfig` blocks that applied to your APK.  In
+that case Gradle will have produced the necessary unsigned, unaligned APK, 
+ready for the Android Signing Plugin to sign.
+
 ## License and Copyright
 
-See the LICENSE file and NOTICE text file for original Work and Derivative Work copyright and license information.
+See the included LICENSE and NOTICE text files for original Work and Derivative
+Work copyright and license information.
