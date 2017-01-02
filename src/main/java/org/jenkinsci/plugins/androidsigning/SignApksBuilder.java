@@ -94,7 +94,6 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
         for (Apk entry : entries) {
             StringTokenizer rpmGlobTokenizer = new StringTokenizer(entry.getSelection(), ",");
-            listener.getLogger().println("[AndroidSignPlugin] - Signing " + rpmGlobTokenizer.countTokens() + " APKs");
 
             StandardCertificateCredentials keyStoreCredential = getKeystore(entry.getKeyStore(), run.getParent());
             char[] storePassword = keyStoreCredential.getPassword().getPlainText().toCharArray();
@@ -131,7 +130,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                 String rpmGlob = rpmGlobTokenizer.nextToken();
                 FilePath[] matchedApks = workspace.list(rpmGlob);
                 if (ArrayUtils.isEmpty(matchedApks)) {
-                    listener.getLogger().println("[AndroidSignPlugin] - No APKs matching " + rpmGlob);
+                    throw new AbortException("No APKs in workspace matching " + rpmGlob);
                 }
                 else {
                     for (FilePath apkPath : matchedApks) {
