@@ -149,6 +149,12 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                         // or try to match build tools version to version for apksig library?
                         String zipalign = findZipalignPath(run.getEnvironment(listener), listener.getLogger());
 
+                        File alignedFile = new File(alignedPath);
+                        if (alignedFile.isFile()) {
+                            listener.getLogger().printf("[SignApksBuilder] deleting previous aligned APK %s\n", alignedFile.getAbsolutePath());
+                            alignedFile.delete();
+                        }
+
                         ArgumentListBuilder zipalignCommand = new ArgumentListBuilder()
                             .add(zipalign)
                             .add("-v")
@@ -169,10 +175,9 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                             return;
                         }
 
-                        File alignedFile = new File(alignedPath);
                         File signedFile = new File(signedPath);
-                        if (signedFile.exists()) {
-                            listener.getLogger().printf("[SignApksBuilder] deleting previous signed APK %s\n", signedFile.getAbsoluteFile());
+                        if (signedFile.isFile()) {
+                            listener.getLogger().printf("[SignApksBuilder] deleting previous signed APK %s\n", signedFile.getAbsolutePath());
                             signedFile.delete();
                         }
 
@@ -204,7 +209,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             }
         }
 
-        listener.getLogger().println("[SignApksBuilder] finished signing APKs ...");
+        listener.getLogger().println("[SignApksBuilder] finished signing APKs");
     }
 
     private String stripWorkspace(FilePath ws, String path) {
