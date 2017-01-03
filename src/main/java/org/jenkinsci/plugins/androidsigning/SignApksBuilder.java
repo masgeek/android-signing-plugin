@@ -48,6 +48,8 @@ import hudson.Launcher;
 import hudson.Proc;
 import hudson.model.AbstractProject;
 import hudson.model.Item;
+import hudson.model.ItemGroup;
+import hudson.model.Job;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
@@ -118,7 +120,6 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                 throw new AbortException("Error reading keystore " + entry.getKeyStore());
             }
 
-            // TODO: generate v1 sig name from cert DN?
             String v1SigName = entry.getAlias();
             if (v1SigName == null) {
                 v1SigName = keyStoreCredential.getId();
@@ -228,10 +229,13 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             return DISPLAY_NAME;
         }
 
-        public ListBoxModel doFillKeystoreItems() {
+        public ListBoxModel doFillKeystoreItems(@AncestorInPath ItemGroup<?> parent) {
+            if (parent == null) {
+                parent = Jenkins.getInstance();
+            }
             ListBoxModel items = new ListBoxModel();
             List<StandardCertificateCredentials> keys = CredentialsProvider.lookupCredentials(
-                    StandardCertificateCredentials.class, Jenkins.getInstance(), ACL.SYSTEM, NO_REQUIREMENTS);
+                    StandardCertificateCredentials.class, parent, ACL.SYSTEM, NO_REQUIREMENTS);
             for (StandardCertificateCredentials key : keys) {
                 items.add(key.getDescription(), key.getId());
             }
