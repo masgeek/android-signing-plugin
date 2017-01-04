@@ -99,6 +99,8 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             return;
         }
 
+        String zipalign = findZipalignPath(run.getEnvironment(listener), listener.getLogger());
+
         for (Apk entry : entries) {
             StringTokenizer rpmGlobTokenizer = new StringTokenizer(entry.getSelection(), ",");
 
@@ -144,10 +146,6 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                         // TODO: implicit coupling to the gradle android plugin's naming convention here
                         String alignedPath = unsignedPath.replace("unsigned", "unsigned-aligned");
                         String signedPath = alignedPath.replace("unsigned-aligned", "signed");
-
-                        // TODO: find zipalign myself and/or add descriptor parameter for build tools version
-                        // or try to match build tools version to version for apksig library?
-                        String zipalign = findZipalignPath(run.getEnvironment(listener), listener.getLogger());
 
                         File alignedFile = new File(alignedPath);
                         File signedFile = new File(signedPath);
@@ -241,7 +239,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         });
 
         if (versionDirs == null) {
-            throw new AbortException("failed to find zipalign: no build-tools directory in ANDROID_HOME path " + buildTools);
+            throw new AbortException("failed to find zipalign: no build-tools directory in ANDROID_HOME path " + buildTools.getParentFile().getAbsolutePath());
         }
 
         SortedMap<VersionNumber, File> versions = new TreeMap<>();
