@@ -31,6 +31,9 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
+import java.nio.channels.FileChannel;
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -54,6 +57,7 @@ import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Proc;
 import hudson.model.AbstractProject;
+import hudson.model.Computer;
 import hudson.model.Item;
 import hudson.model.ItemGroup;
 import hudson.model.Result;
@@ -165,6 +169,14 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                             .add(unsignedPath)
                             .add(alignedPath);
 
+                        Launcher zipalignLauncher = apkPath.createLauncher(listener);
+
+                        listener.getLogger().printf("[SignApksBuilder] I'm running on computer %s\n", Computer.currentComputer());
+                        listener.getLogger().printf("[SignApksBuilder] My workspace is on computer %s\n", workspace.toComputer());
+                        listener.getLogger().printf("[SignApksBuilder] My APK %s is on copmuter %s\n", apkPath, apkPath.toComputer());
+                        listener.getLogger().printf("[SignApksBuilder] launching zipalign with launcher %s\n", launcher);
+                        listener.getLogger().printf("[SignApksBuilder] should i instead use launcher %s?\n", zipalignLauncher);
+
                         int zipalignResult = launcher.new ProcStarter()
                             .cmds(zipalignCommand)
                             .pwd(workspace)
@@ -177,8 +189,11 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                             throw new AbortException(String.format("zipalign failed on APK %s: exit code %d", unsignedPath, zipalignResult));
                         }
                         File alignedFile = new File(alignedPath);
+                        if (!alignedFile.exists()) {
+                            throw new AbortException(String.format("aligned APK is does not exist: %s", alignedFile.getAbsolutePath()));
+                        }
                         if (!alignedFile.canRead()) {
-                            throw new AbortException(String.format("aligned APK is not readable or does not exist: %s", alignedFile.getAbsolutePath()));
+                            throw new AbortException(String.format("aligned APK is not readable: %s", alignedFile.getAbsolutePath()));
                         }
 
                         listener.getLogger().printf("[SignApksBuilder] signing APK %s\n", alignedFile.getAbsolutePath());
