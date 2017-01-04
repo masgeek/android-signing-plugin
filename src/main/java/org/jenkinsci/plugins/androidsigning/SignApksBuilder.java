@@ -13,7 +13,6 @@
 package org.jenkinsci.plugins.androidsigning;
 
 import com.android.apksig.ApkSigner;
-import com.android.apksig.util.DataSources;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
@@ -30,10 +29,6 @@ import java.io.FileFilter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
-import java.io.RandomAccessFile;
-import java.nio.channels.FileChannel;
-import java.nio.file.FileSystems;
-import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -55,7 +50,6 @@ import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.Proc;
 import hudson.model.AbstractProject;
 import hudson.model.Computer;
 import hudson.model.Item;
@@ -170,14 +164,17 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                             .add(alignedPath);
 
                         Launcher zipalignLauncher = apkPath.createLauncher(listener);
+                        Launcher workspaceLauncher = workspace.createLauncher(listener);
+                        Launcher localLauncher = new Launcher.LocalLauncher(listener);
 
                         listener.getLogger().printf("[SignApksBuilder] I'm running on computer %s\n", Computer.currentComputer());
                         listener.getLogger().printf("[SignApksBuilder] My workspace is on computer %s\n", workspace.toComputer());
                         listener.getLogger().printf("[SignApksBuilder] My APK %s is on copmuter %s\n", apkPath, apkPath.toComputer());
                         listener.getLogger().printf("[SignApksBuilder] launching zipalign with launcher %s\n", launcher);
-                        listener.getLogger().printf("[SignApksBuilder] should i instead use launcher %s?\n", zipalignLauncher);
+                        listener.getLogger().printf("[SignApksBuilder] should i instead use the apk launcher %s?\n", zipalignLauncher);
+                        listener.getLogger().printf("[SignApksBuilder] or how about the workspace launcher %s?\n", workspaceLauncher);
 
-                        int zipalignResult = launcher.new ProcStarter()
+                        int zipalignResult = localLauncher.new ProcStarter()
                             .cmds(zipalignCommand)
                             .pwd(workspace)
                             .stdout(listener)
@@ -188,9 +185,18 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                             listener.fatalError("[SignApksBuilder] zipalign failed: exit code %d", zipalignResult);
                             throw new AbortException(String.format("zipalign failed on APK %s: exit code %d", unsignedPath, zipalignResult));
                         }
+
                         File alignedFile = new File(alignedPath);
+                        FilePath alignedFilePath = new FilePath(alignedFile);
+
+                        listener.getLogger().printf("[SignApksBuilder] aligned file\n" +
+                            "\texists? %s\n" +
+                            "\tremote? %s\n",
+                            alignedFilePath.exists(),
+                            alignedFilePath.isRemote());
+
                         if (!alignedFile.exists()) {
-                            throw new AbortException(String.format("aligned APK is does not exist: %s", alignedFile.getAbsolutePath()));
+                            throw new AbortException(String.format("aligned APK does not exist: %s", alignedFile.getAbsolutePath()));
                         }
                         if (!alignedFile.canRead()) {
                             throw new AbortException(String.format("aligned APK is not readable: %s", alignedFile.getAbsolutePath()));
