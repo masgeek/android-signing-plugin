@@ -150,14 +150,18 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                         String zipalign = findZipalignPath(run.getEnvironment(listener), listener.getLogger());
 
                         File alignedFile = new File(alignedPath);
-                        if (alignedFile.isFile()) {
-                            listener.getLogger().printf("[SignApksBuilder] deleting previous aligned APK %s\n", alignedFile.getAbsolutePath());
-                            alignedFile.delete();
+                        File signedFile = new File(signedPath);
+                        if (signedFile.isFile()) {
+                            listener.getLogger().printf("[SignApksBuilder] deleting previous signed APK %s\n", signedFile.getAbsolutePath());
+                            if (!signedFile.delete()) {
+                                throw new AbortException("failed to delete previous signed APK " + signedPath);
+                            }
                         }
 
                         ArgumentListBuilder zipalignCommand = new ArgumentListBuilder()
                             .add(zipalign)
                             .add("-v")
+                            .add("-f")
                             .add("-p").add("4")
                             .add(unsignedPath)
                             .add(alignedPath);
@@ -171,14 +175,8 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                         Proc zipalignProc = launcher.launch(zipalignStarter);
                         int zipalignResult = zipalignProc.join();
                         if (zipalignResult != 0) {
-                            listener.getLogger().println("[SignApksBuilder] failed aligning APK");
-                            return;
-                        }
-
-                        File signedFile = new File(signedPath);
-                        if (signedFile.isFile()) {
-                            listener.getLogger().printf("[SignApksBuilder] deleting previous signed APK %s\n", signedFile.getAbsolutePath());
-                            signedFile.delete();
+                            listener.fatalError("[SignApksBuilder] zipalign failed: exit code %d", zipalignResult);
+                            throw new AbortException(String.format("zipalign failed on APK %s: exit code %d", unsignedPath, zipalignResult));
                         }
 
                         listener.getLogger().printf("[SignApksBuilder] signing APK %s\n", alignedFile.getAbsolutePath());
