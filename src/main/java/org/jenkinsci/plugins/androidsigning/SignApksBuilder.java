@@ -13,6 +13,7 @@
 package org.jenkinsci.plugins.androidsigning;
 
 import com.android.apksig.ApkSigner;
+import com.android.apksig.util.DataSources;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
@@ -29,6 +30,7 @@ import java.io.FileFilter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.io.RandomAccessFile;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -147,7 +149,6 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                         String alignedPath = unsignedPath.replace("unsigned", "unsigned-aligned");
                         String signedPath = alignedPath.replace("unsigned-aligned", "signed");
 
-                        File alignedFile = new File(alignedPath);
                         File signedFile = new File(signedPath);
                         if (signedFile.isFile()) {
                             listener.getLogger().printf("[SignApksBuilder] deleting previous signed APK %s\n", signedFile.getAbsolutePath());
@@ -164,17 +165,20 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                             .add(unsignedPath)
                             .add(alignedPath);
 
-                        Launcher.ProcStarter zipalignStarter = launcher.new ProcStarter()
+                        int zipalignResult = launcher.new ProcStarter()
                             .cmds(zipalignCommand)
-                            .pwd(apkPath.getParent())
-                            .envs(run.getEnvironment(listener))
-                            .stdout(listener);
+                            .pwd(workspace)
+                            .stdout(listener)
+                            .stderr(listener.getLogger())
+                            .join();
 
-                        Proc zipalignProc = launcher.launch(zipalignStarter);
-                        int zipalignResult = zipalignProc.join();
                         if (zipalignResult != 0) {
                             listener.fatalError("[SignApksBuilder] zipalign failed: exit code %d", zipalignResult);
                             throw new AbortException(String.format("zipalign failed on APK %s: exit code %d", unsignedPath, zipalignResult));
+                        }
+                        File alignedFile = new File(alignedPath);
+                        if (!alignedFile.canRead()) {
+                            throw new AbortException(String.format("aligned APK is not readable or does not exist: %s", alignedFile.getAbsolutePath()));
                         }
 
                         listener.getLogger().printf("[SignApksBuilder] signing APK %s\n", alignedFile.getAbsolutePath());
