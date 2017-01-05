@@ -25,7 +25,6 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
 import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -51,12 +50,12 @@ import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractProject;
-import hudson.model.Computer;
 import hudson.model.Item;
 import hudson.model.ItemGroup;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.remoting.VirtualChannel;
 import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
@@ -64,6 +63,7 @@ import hudson.util.ArgumentListBuilder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.VersionNumber;
+import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 import jenkins.util.BuildListenerAdapter;
@@ -99,7 +99,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             return;
         }
 
-        String zipalign = findZipalignPath(run.getEnvironment(listener), listener.getLogger());
+        FilePath zipalign = findZipalignPath(workspace, run.getEnvironment(listener), listener.getLogger());
 
         for (Apk entry : entries) {
             StringTokenizer rpmGlobTokenizer = new StringTokenizer(entry.getSelection(), ",");
@@ -110,16 +110,13 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             char[] keyPassword = storePassword;
             KeyStore keyStore = keyStoreCredential.getKeyStore();
             PrivateKey key;
-            ArrayList<X509Certificate> certs = new ArrayList<>();
+            Certificate[] certChain;
             try {
                 if (entry.getAlias() == null) {
                     // TODO: search all entries to find key, throw error if multiple keys
                 }
                 key = (PrivateKey)keyStore.getKey(entry.getAlias(), keyPassword);
-                Certificate[] certChain = keyStore.getCertificateChain(entry.getAlias());
-                for (Certificate cert : certChain) {
-                    certs.add((X509Certificate)cert);
-                }
+                certChain = keyStore.getCertificateChain(entry.getAlias());
             }
             catch (GeneralSecurityException e) {
                 PrintWriter details = listener.fatalError("Error reading keystore " + entry.getKeyStore());
@@ -131,8 +128,6 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             if (v1SigName == null) {
                 v1SigName = keyStoreCredential.getId();
             }
-            ApkSigner.SignerConfig signerConfig = new ApkSigner.SignerConfig.Builder(v1SigName, key, certs).build();
-            List<ApkSigner.SignerConfig> signerConfigs = Collections.singletonList(signerConfig);
 
             while (rpmGlobTokenizer.hasMoreTokens()) {
                 String rpmGlob = rpmGlobTokenizer.nextToken();
@@ -142,39 +137,21 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                 }
                 else {
                     for (FilePath apkPath : matchedApks) {
-                        String unsignedPath = apkPath.absolutize().getRemote();
+                        String unsignedPathName = apkPath.absolutize().getRemote();
                         // TODO: implicit coupling to the gradle android plugin's naming convention here
-                        String alignedPath = unsignedPath.replace("unsigned", "unsigned-aligned");
-                        String signedPath = alignedPath.replace("unsigned-aligned", "signed");
-
-                        File signedFile = new File(signedPath);
-                        if (signedFile.isFile()) {
-                            listener.getLogger().printf("[SignApksBuilder] deleting previous signed APK %s\n", signedFile.getAbsolutePath());
-                            if (!signedFile.delete()) {
-                                throw new AbortException("failed to delete previous signed APK " + signedPath);
-                            }
-                        }
+                        String alignedPathName = unsignedPathName.replace("unsigned", "unsigned-aligned");
+                        String signedPathName = alignedPathName.replace("unsigned-aligned", "signed");
 
                         ArgumentListBuilder zipalignCommand = new ArgumentListBuilder()
-                            .add(zipalign)
+                            // zipalign and apk must be on the same node as the workspace
+                            .add(zipalign.getRemote())
                             .add("-v")
                             .add("-f")
                             .add("-p").add("4")
-                            .add(unsignedPath)
-                            .add(alignedPath);
+                            .add(unsignedPathName)
+                            .add(alignedPathName);
 
-                        Launcher zipalignLauncher = apkPath.createLauncher(listener);
-                        Launcher workspaceLauncher = workspace.createLauncher(listener);
-                        Launcher localLauncher = new Launcher.LocalLauncher(listener);
-
-                        listener.getLogger().printf("[SignApksBuilder] I'm running on computer %s\n", Computer.currentComputer());
-                        listener.getLogger().printf("[SignApksBuilder] My workspace is on computer %s\n", workspace.toComputer());
-                        listener.getLogger().printf("[SignApksBuilder] My APK %s is on copmuter %s\n", apkPath, apkPath.toComputer());
-                        listener.getLogger().printf("[SignApksBuilder] launching zipalign with launcher %s\n", launcher);
-                        listener.getLogger().printf("[SignApksBuilder] should i instead use the apk launcher %s?\n", zipalignLauncher);
-                        listener.getLogger().printf("[SignApksBuilder] or how about the workspace launcher %s?\n", workspaceLauncher);
-
-                        int zipalignResult = localLauncher.new ProcStarter()
+                        int zipalignResult = launcher.new ProcStarter()
                             .cmds(zipalignCommand)
                             .pwd(workspace)
                             .stdout(listener)
@@ -183,47 +160,22 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
                         if (zipalignResult != 0) {
                             listener.fatalError("[SignApksBuilder] zipalign failed: exit code %d", zipalignResult);
-                            throw new AbortException(String.format("zipalign failed on APK %s: exit code %d", unsignedPath, zipalignResult));
+                            throw new AbortException(String.format("zipalign failed on APK %s: exit code %d", unsignedPathName, zipalignResult));
                         }
 
-                        File alignedFile = new File(alignedPath);
-                        FilePath alignedFilePath = new FilePath(alignedFile);
-
-                        listener.getLogger().printf("[SignApksBuilder] aligned file\n" +
-                            "\texists? %s\n" +
-                            "\tremote? %s\n",
-                            alignedFilePath.exists(),
-                            alignedFilePath.isRemote());
-
-                        if (!alignedFile.exists()) {
-                            throw new AbortException(String.format("aligned APK does not exist: %s", alignedFile.getAbsolutePath()));
-                        }
-                        if (!alignedFile.canRead()) {
-                            throw new AbortException(String.format("aligned APK is not readable: %s", alignedFile.getAbsolutePath()));
+                        FilePath alignedPath = workspace.child(alignedPathName);
+                        if (!alignedPath.exists()) {
+                            throw new AbortException(String.format("aligned APK does not exist: %s", alignedPathName));
                         }
 
-                        listener.getLogger().printf("[SignApksBuilder] signing APK %s\n", alignedFile.getAbsolutePath());
+                        listener.getLogger().printf("[SignApksBuilder] signing APK %s\n", alignedPathName);
 
-                        ApkSigner.Builder signerBuilder = new ApkSigner.Builder(signerConfigs)
-                            .setInputApk(alignedFile)
-                            .setOutputApk(signedFile)
-                            .setOtherSignersSignaturesPreserved(false)
-                            // TODO: add to jenkins descriptor
-                            .setV1SigningEnabled(true)
-                            .setV2SigningEnabled(true);
-                        ApkSigner signer = signerBuilder.build();
-                        try {
-                            signer.sign();
-                        }
-                        catch (Exception e) {
-                            PrintWriter details = listener.fatalError("[SignApksBuilder] error signing APK %s", alignedFile.getAbsolutePath());
-                            e.printStackTrace(details);
-                            throw new AbortException("failed to sign APK " + alignedFile.getAbsolutePath() + ": " + e.getLocalizedMessage());
-                        }
+                        final SignApkCallable signApk = new SignApkCallable(key, certChain, v1SigName, signedPathName, listener);
+                        alignedPath.act(signApk);
 
                         Map<String,String> artifactsInsideWorkspace = new LinkedHashMap<>();
-                        artifactsInsideWorkspace.put(alignedPath, stripWorkspace(workspace, alignedPath));
-                        artifactsInsideWorkspace.put(signedPath, stripWorkspace(workspace, signedPath));
+                        artifactsInsideWorkspace.put(alignedPathName, stripWorkspace(workspace, alignedPathName));
+                        artifactsInsideWorkspace.put(signedPathName, stripWorkspace(workspace, signedPathName));
                         run.pickArtifactManager().archive(workspace, launcher, BuildListenerAdapter.wrap(listener), artifactsInsideWorkspace);
                     }
                 }
@@ -243,11 +195,11 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         return CredentialsMatchers.firstOrNull(creds, CredentialsMatchers.withId(keyStoreName));
     }
 
-    private @Nonnull String findZipalignPath(EnvVars env, PrintStream logger) throws AbortException {
+    private @Nonnull FilePath findZipalignPath(FilePath workspace, EnvVars env, PrintStream logger) throws AbortException {
         String zipalign = env.get("ANDROID_ZIPALIGN");
         if (!StringUtils.isEmpty(zipalign)) {
             logger.printf("[SignApksBuilder] found zipalign path in env ANDROID_ZIPALIGN=%s\n", zipalign);
-            return zipalign;
+            return new FilePath(workspace.getChannel(), zipalign);
         }
 
         String androidHome = env.get("ANDROID_HOME");
@@ -255,25 +207,27 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             throw new AbortException("failed to find zipalign: no environment variable ANDROID_ZIPALIGN or ANDROID_HOME");
         }
 
-        File buildTools = new File(androidHome, "build-tools");
-        File[] versionDirs = buildTools.listFiles(new FileFilter() {
-            @Override
-            public boolean accept(File pathname) {
-                return pathname.isDirectory();
-            }
-        });
-
-        if (versionDirs == null) {
-            throw new AbortException("failed to find zipalign: no build-tools directory in ANDROID_HOME path " + buildTools.getParentFile().getAbsolutePath());
+        FilePath buildTools = new FilePath(workspace.getChannel(), androidHome).child("build-tools");
+        List<FilePath> versionDirs;
+        try {
+            versionDirs = buildTools.listDirectories();
+        }
+        catch (Exception e) {
+            e.printStackTrace(logger);
+            throw new AbortException(String.format(
+                "failed to find zipalign: error listing build-tools versions in %s: %s",
+                buildTools.getRemote(), e.getLocalizedMessage()));
         }
 
-        SortedMap<VersionNumber, File> versions = new TreeMap<>();
-        for (File versionDir : versionDirs) {
-            if (versionDir.isDirectory()) {
-                String versionName = versionDir.getName();
-                VersionNumber version = new VersionNumber(versionName);
-                versions.put(version, versionDir);
-            }
+        if (versionDirs.isEmpty()) {
+            throw new AbortException("failed to find zipalign: no build-tools directory in ANDROID_HOME path " + androidHome);
+        }
+
+        SortedMap<VersionNumber, FilePath> versions = new TreeMap<>();
+        for (FilePath versionDir : versionDirs) {
+            String versionName = versionDir.getName();
+            VersionNumber version = new VersionNumber(versionName);
+            versions.put(version, versionDir);
         }
 
         if (versions.isEmpty()) {
@@ -282,17 +236,24 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         }
 
         VersionNumber latest = versions.lastKey();
-        File zipalignPath = versions.get(latest);
-        zipalignPath = new File(zipalignPath, "zipalign");
+        FilePath zipalignPath = versions.get(latest);
+        zipalignPath = zipalignPath.child("zipalign");
 
-        if (!zipalignPath.isFile()) {
-            throw new AbortException("failed to find zipalign: zipalign does not exist in latest build-tools path " +
-                zipalignPath.getParentFile().getAbsolutePath());
+        try {
+            if (!zipalignPath.exists()) {
+                throw new AbortException("failed to find zipalign: zipalign does not exist in latest build-tools path " +
+                    zipalignPath.getParent().getRemote());
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace(logger);
+            throw new AbortException(
+                String.format("failed to find zipalign: error listing build-tools versions in %s: %s",
+                buildTools.getRemote(), e.getLocalizedMessage()));
         }
 
-        zipalign = zipalignPath.getAbsolutePath();
-        logger.printf("[SignApksBuilder] found zipalign path in Android SDK's latest build tools %s\n", zipalign);
-        return zipalign;
+        logger.printf("[SignApksBuilder] found zipalign in Android SDK's latest build tools: %s\n", zipalignPath);
+        return zipalignPath;
     }
 
     @Extension
@@ -345,6 +306,64 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             else {
                 return FormValidation.warning(Messages.noworkspace());
             }
+        }
+    }
+
+    static class SignApkCallable extends MasterToSlaveFileCallable<Void> {
+
+        private static final long serialVersionUID = 1;
+
+        private final PrivateKey key;
+        private final Certificate[] certChain;
+        private final String v1SigName;
+        private final String outputApk;
+        private final TaskListener listener;
+
+        SignApkCallable(PrivateKey key, Certificate[] certChain, String v1SigName, String outputApk, TaskListener listener) {
+            this.key = key;
+            this.certChain = certChain;
+            this.v1SigName = v1SigName;
+            this.outputApk = outputApk;
+            this.listener = listener;
+        }
+
+        @Override
+        public Void invoke(File inputApkFile, VirtualChannel channel) throws IOException, InterruptedException {
+
+            File outputApkFile = new File(outputApk);
+            if (outputApkFile.isFile()) {
+                listener.getLogger().printf("[SignApksBuilder] deleting previous signed APK %s\n", outputApk);
+                if (!outputApkFile.delete()) {
+                    throw new AbortException("failed to delete previous signed APK " + outputApk);
+                }
+            }
+
+            List<X509Certificate> certs = new ArrayList<>(certChain.length);
+            for (Certificate cert : certChain) {
+                certs.add((X509Certificate) cert);
+            }
+            ApkSigner.SignerConfig signerConfig = new ApkSigner.SignerConfig.Builder(v1SigName, key, certs).build();
+            List<ApkSigner.SignerConfig> signerConfigs = Collections.singletonList(signerConfig);
+
+            ApkSigner.Builder signerBuilder = new ApkSigner.Builder(signerConfigs)
+                .setInputApk(inputApkFile)
+                .setOutputApk(outputApkFile)
+                .setOtherSignersSignaturesPreserved(false)
+                // TODO: add to jenkins descriptor
+                .setV1SigningEnabled(true)
+                .setV2SigningEnabled(true);
+
+            ApkSigner signer = signerBuilder.build();
+            try {
+                signer.sign();
+            }
+            catch (Exception e) {
+                PrintWriter details = listener.fatalError("[SignApksBuilder] error signing APK %s", inputApkFile.getAbsolutePath());
+                e.printStackTrace(details);
+                throw new AbortException("failed to sign APK " + inputApkFile.getAbsolutePath() + ": " + e.getLocalizedMessage());
+            }
+
+            return null;
         }
     }
 
