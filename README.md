@@ -53,18 +53,21 @@ As of this writing, this plugin is not yet hosted in the Jenkins Update Centre.
 ## Usage
 
 Before adding a _Sign APKs_ build step to a job, you must configure a certificate
-credential using the Credentials Plugin's UI.  As of this wrtiting, this plugin
-requires a password-protected PKCS12 keystore containing a private key entry
+credential using the Credentials Plugin's UI.  As of this writing, this plugin
+requires a password-protected PKCS12 keystore containing a single private key entry
 protected by the same password.  This will probably change in a future version to
 allow password-free keys or keys with separate passwords.
 
-As of this writing, you must set the environment variable `ANDROID_ZIPALIGN` in
-Jenkins to the path of the
+This plugin will attempt to find the Android SDK's 
 [`zipalign`](https://developer.android.com/studio/command-line/zipalign.html)
-executable provided with the Android Build Tools SDK package, .e.g,
-`${ANDROID_HOME}/build-tools/25.0.2/zipalign`.  This therefore implies that
-whatever Jenkins node is performing the build has access to an installed Android
-SDK, which is likely the case if you built your APK in a Jenkins job as well.
+by way of the `ANDROID_HOME` environment variable.  It searches for the latest
+version of the `build-tools` package installed in your SDK.  Alternatively, 
+you can set the overriding `ANDROID_ZIPALIGN` environment variable to the path
+of the `zipalign` executable you prefer, e.g., 
+`${ANDROID_HOME}/build-tools/25.0.2/zipalign`.  This therefore implies that 
+whatever Jenkins node is performing the build has access to an installed 
+Android SDK, which is likely the case if you built your APK in a Jenkins job as
+well.
 
 Once the prerequisites are setup, you can now add the _Sign APKs_ build step to
 a job.  The configuration UI is fairly straight forward.  Select the certificate
