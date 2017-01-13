@@ -36,19 +36,21 @@ utility in the Android SDK Developer Tools package.  Using `apksig` ensures the 
 this plugin produces comply with the newer
 [APK Signature Scheme v2](https://source.android.com/security/apksigning/v2.html).
 Thanks to Google/Android for making that library available as a
-[Maven dependency](http://jcenter.bintray.com/com/android/tools/build/apksig/).
+[Maven dependency](https://bintray.com/android/android-tools/com.android.tools.build.apksig).
 
 ## Building
 
-Run `mvn package` to build a deployable HPI bundle for Jenkins.
+Run `mvn package` to build a deployable HPI bundle for Jenkins.  Note this plugin
+**REQUIRES JDK 1.8** to build and run because of the dependency on the Android `apksig` library.
 
 ## Installation
 
-First, make sure your Jenkins instance has the Credentials Plugin.  Check the
-[POM](pom.xml) for version requirements.  Copy the `target/android-signing.hpi`
+First, make sure your Jenkins instance has the Credentials Plugin (linked above).
+Check the [POM](pom.xml) for version requirements.  Copy the `target/android-signing.hpi`
 plugin bundle to `$JENKINS_HOME/plugins/` directory, and restart Jenkins.
 
-As of this writing, this plugin is not yet hosted in the Jenkins Update Centre.
+As of this writing, this plugin is not yet hosted in the Jenkins Update Centre, so you
+cannot install using the Jenkins UI.
 
 ## Usage
 
