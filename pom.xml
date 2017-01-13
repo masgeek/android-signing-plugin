@@ -59,9 +59,9 @@
   </developers>
 
   <scm>
-    <connection>scm:git:ssh://github.com/restjohn/jenkins-android-signing.git</connection>
-    <developerConnection>scm:git:ssh://git@github.com/restjohn/jenkins-android-signing.git</developerConnection>
-    <url>https://github.com/restjohn/jenkins-android-signing</url>
+    <connection>scm:git:ssh://github.com/restjohn/jenkins-android-signing-plugin.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/restjohn/jenkins-android-signing-plugin.git</developerConnection>
+    <url>https://github.com/restjohn/jenkins-android-signing-plugin</url>
   </scm>
 
   <!-- get every artifact through repo.jenkins-ci.org, which proxies all the artifacts that we need -->
