@@ -99,6 +99,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             return;
         }
 
+        Map<String,String> apksToArchive = new LinkedHashMap<>();
         FilePath zipalign = findZipalignPath(workspace, run.getEnvironment(listener), listener.getLogger());
 
         for (Apk entry : entries) {
@@ -171,16 +172,27 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                         final SignApkCallable signApk = new SignApkCallable(key, certChain, v1SigName, signedPathName, listener);
                         alignedPath.act(signApk);
 
-                        Map<String,String> artifactsInsideWorkspace = new LinkedHashMap<>();
-                        artifactsInsideWorkspace.put(alignedPathName, stripWorkspace(workspace, alignedPathName));
-                        artifactsInsideWorkspace.put(signedPathName, stripWorkspace(workspace, signedPathName));
-                        run.pickArtifactManager().archive(workspace, launcher, BuildListenerAdapter.wrap(listener), artifactsInsideWorkspace);
+                        listener.getLogger().printf("[SignApksBuilder] signed APK %s\n", signedPathName);
+
+                        if (entry.getArchiveUnsignedApks()) {
+                            listener.getLogger().printf("[SignApksBuilder] archiving unsigned APK %s\n", unsignedPathName);
+                            apksToArchive.put(unsignedPathName, stripWorkspace(workspace, unsignedPathName));
+                        }
+                        if (entry.getArchiveSignedApks()) {
+                            listener.getLogger().printf("[SignApksBuilder] archiving signed APK %s\n", signedPathName);
+                            apksToArchive.put(signedPathName, stripWorkspace(workspace, signedPathName));
+                        }
+
                     }
                 }
             }
         }
 
         listener.getLogger().println("[SignApksBuilder] finished signing APKs");
+
+        if (apksToArchive.size() > 0) {
+            run.pickArtifactManager().archive(workspace, launcher, BuildListenerAdapter.wrap(listener), apksToArchive);
+        }
     }
 
     private String stripWorkspace(FilePath ws, String path) {

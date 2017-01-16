@@ -9,12 +9,16 @@ public final class Apk extends AbstractDescribableImpl<Apk> {
     private String keyStore;
     private String alias;
     private String selection;
+    private boolean archiveUnsignedApks;
+    private boolean archiveSignedApks;
 
     @DataBoundConstructor
-    public Apk(String keystore, String alias, String selection) {
+    public Apk(String keystore, String alias, String selection, boolean archiveUnsignedApks, boolean archiveSignedApks) {
         this.keyStore = keystore;
         this.alias = alias;
         this.selection = selection;
+        this.archiveUnsignedApks = archiveUnsignedApks;
+        this.archiveSignedApks = archiveSignedApks;
     }
 
     @Extension
@@ -35,5 +39,13 @@ public final class Apk extends AbstractDescribableImpl<Apk> {
 
     public String getAlias() {
         return alias;
+    }
+
+    public boolean getArchiveUnsignedApks() {
+        return archiveUnsignedApks;
+    }
+
+    public boolean getArchiveSignedApks() {
+        return archiveSignedApks;
     }
 }

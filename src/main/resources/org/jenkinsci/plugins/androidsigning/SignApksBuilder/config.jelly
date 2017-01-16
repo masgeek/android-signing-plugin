@@ -16,6 +16,12 @@
         <f:entry field="selection" title="${%Includes}">
           <f:textbox value="${apks.selection}" />
         </f:entry>
+        <f:entry field="archiveUnsignedApks" title="${%Archive Unsigned APKs}">
+          <f:checkbox checked="${apks.archiveUnsignedApks}"/>
+        </f:entry>
+        <f:entry field="archiveSignedApks" title="${%Archive Signed APKs}">
+          <f:checkbox checked="${apks.archiveSignedApks}"/>
+        </f:entry>
         <f:entry title="">
           <div align="right">
             <f:repeatableDeleteButton />
