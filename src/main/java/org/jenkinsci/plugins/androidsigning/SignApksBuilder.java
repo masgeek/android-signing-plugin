@@ -143,9 +143,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                         String signedPathName = alignedPathName.replace("unsigned-aligned", "signed");
 
                         ArgumentListBuilder zipalignCommand = new ArgumentListBuilder()
-                            // zipalign and apk must be on the same node as the workspace
                             .add(zipalign.getRemote())
-                            .add("-v")
                             .add("-f")
                             .add("-p").add("4")
                             .add(unsignedPathName)
