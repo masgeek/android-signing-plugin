@@ -84,7 +84,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
     private boolean isIntermediateFailure(Run build) {
         Result result = build.getResult();
-        return result != null && build.getResult().isWorseThan(Result.UNSTABLE);
+        return result != null && result.isWorseThan(Result.UNSTABLE);
     }
 
     @SuppressWarnings("unused")
@@ -167,19 +167,19 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                             throw new AbortException(String.format("aligned APK does not exist: %s", alignedPathName));
                         }
 
-                        listener.getLogger().printf("[SignApksBuilder] signing APK %s\n", alignedPathName);
+                        listener.getLogger().printf("[SignApksBuilder] signing APK %s%n", alignedPathName);
 
                         final SignApkCallable signApk = new SignApkCallable(key, certChain, v1SigName, signedPathName, listener);
                         alignedPath.act(signApk);
 
-                        listener.getLogger().printf("[SignApksBuilder] signed APK %s\n", signedPathName);
+                        listener.getLogger().printf("[SignApksBuilder] signed APK %s%n", signedPathName);
 
                         if (entry.getArchiveUnsignedApks()) {
-                            listener.getLogger().printf("[SignApksBuilder] archiving unsigned APK %s\n", unsignedPathName);
+                            listener.getLogger().printf("[SignApksBuilder] archiving unsigned APK %s%n", unsignedPathName);
                             apksToArchive.put(unsignedPathName, stripWorkspace(workspace, unsignedPathName));
                         }
                         if (entry.getArchiveSignedApks()) {
-                            listener.getLogger().printf("[SignApksBuilder] archiving signed APK %s\n", signedPathName);
+                            listener.getLogger().printf("[SignApksBuilder] archiving signed APK %s%n", signedPathName);
                             apksToArchive.put(signedPathName, stripWorkspace(workspace, signedPathName));
                         }
 
@@ -208,7 +208,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
     private @Nonnull FilePath findZipalignPath(FilePath workspace, EnvVars env, PrintStream logger) throws AbortException {
         String zipalign = env.get("ANDROID_ZIPALIGN");
         if (!StringUtils.isEmpty(zipalign)) {
-            logger.printf("[SignApksBuilder] found zipalign path in env ANDROID_ZIPALIGN=%s\n", zipalign);
+            logger.printf("[SignApksBuilder] found zipalign path in env ANDROID_ZIPALIGN=%s%n", zipalign);
             return new FilePath(workspace.getChannel(), zipalign);
         }
 
@@ -262,7 +262,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                 buildTools.getRemote(), e.getLocalizedMessage()));
         }
 
-        logger.printf("[SignApksBuilder] found zipalign in Android SDK's latest build tools: %s\n", zipalignPath);
+        logger.printf("[SignApksBuilder] found zipalign in Android SDK's latest build tools: %s%n", zipalignPath);
         return zipalignPath;
     }
 
@@ -342,7 +342,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
             File outputApkFile = new File(outputApk);
             if (outputApkFile.isFile()) {
-                listener.getLogger().printf("[SignApksBuilder] deleting previous signed APK %s\n", outputApk);
+                listener.getLogger().printf("[SignApksBuilder] deleting previous signed APK %s%n", outputApk);
                 if (!outputApkFile.delete()) {
                     throw new AbortException("failed to delete previous signed APK " + outputApk);
                 }
