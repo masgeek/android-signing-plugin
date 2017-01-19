@@ -1,16 +1,15 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
     <version>2.11</version>
-    <relativePath/>
+    <relativePath />
   </parent>
 
   <artifactId>android-signing</artifactId>
-  <version>2.0.7-SNAPSHOT</version>
+  <version>2.0.7</version>
   <packaging>hpi</packaging>
   <name>Android Signing Plugin</name>
   <description>A Jenkins build step for signing Android APKs with Jenkins-managed credentials</description>
@@ -50,6 +49,7 @@
     <connection>scm:git:ssh://github.com/jenkinsci/android-signing-plugin.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/jenkinsci/android-signing-plugin.git</developerConnection>
     <url>https://github.com/jenkinsci/android-signing-plugin</url>
+    <tag>android-signing-2.0.7</tag>
   </scm>
 
   <!-- get every artifact through repo.jenkins-ci.org, which proxies all the artifacts that we need -->
