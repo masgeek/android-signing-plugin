@@ -19,14 +19,12 @@ import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 
 import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
@@ -38,9 +36,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedMap;
 import java.util.StringTokenizer;
-import java.util.TreeMap;
 
 import javax.annotation.Nonnull;
 
@@ -49,6 +45,7 @@ import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
+import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.Item;
 import hudson.model.ItemGroup;
@@ -62,7 +59,6 @@ import hudson.tasks.Builder;
 import hudson.util.ArgumentListBuilder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import hudson.util.VersionNumber;
 import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
@@ -73,6 +69,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
     private static final List<DomainRequirement> NO_REQUIREMENTS = Collections.emptyList();
 
     private List<Apk> entries = Collections.emptyList();
+    transient private String zipalignPath;
 
     @DataBoundConstructor
     public SignApksBuilder(List<Apk> apks) {
@@ -88,6 +85,11 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
     }
 
     @SuppressWarnings("unused")
+    public void setZipalignPath(String x) {
+        this.zipalignPath = x;
+    }
+
+    @SuppressWarnings("unused")
     public List<Apk> getEntries() {
         return entries;
     }
@@ -99,9 +101,18 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             return;
         }
 
-        Map<String,String> apksToArchive = new LinkedHashMap<>();
-        FilePath zipalign = findZipalignPath(workspace, run.getEnvironment(listener), listener.getLogger());
+        EnvVars env;
+        if (run instanceof AbstractBuild) {
+            env = run.getEnvironment(listener);
+            env.overrideAll(((AbstractBuild<?,?>) run).getBuildVariables());
+        }
+        else {
+            env = new EnvVars();
+        }
 
+        ZipalignTool zipalign = new ZipalignTool(env, workspace, listener.getLogger(), zipalignPath);
+
+        Map<String,String> apksToArchive = new LinkedHashMap<>();
         for (Apk entry : entries) {
             StringTokenizer rpmGlobTokenizer = new StringTokenizer(entry.getSelection(), ",");
 
@@ -143,14 +154,9 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                         String alignedPathName = unsignedPathName.replace("unsigned", "unsigned-aligned");
                         String signedPathName = alignedPathName.replace("unsigned-aligned", "signed");
 
-                        ArgumentListBuilder zipalignCommand = new ArgumentListBuilder()
-                            .add(zipalign.getRemote())
-                            .add("-f")
-                            .add("-p").add("4")
-                            .add(unsignedPathName)
-                            .add(alignedPathName);
+                        ArgumentListBuilder zipalignCommand = zipalign.commandFor(unsignedPathName, alignedPathName);
 
-                        int zipalignResult = launcher.new ProcStarter()
+                        int zipalignResult = launcher.launch()
                             .cmds(zipalignCommand)
                             .pwd(workspace)
                             .stdout(listener)
@@ -203,67 +209,6 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         List<StandardCertificateCredentials> creds = CredentialsProvider.lookupCredentials(
                 StandardCertificateCredentials.class, item, ACL.SYSTEM, NO_REQUIREMENTS);
         return CredentialsMatchers.firstOrNull(creds, CredentialsMatchers.withId(keyStoreName));
-    }
-
-    private @Nonnull FilePath findZipalignPath(FilePath workspace, EnvVars env, PrintStream logger) throws AbortException {
-        String zipalign = env.get("ANDROID_ZIPALIGN");
-        if (!StringUtils.isEmpty(zipalign)) {
-            logger.printf("[SignApksBuilder] found zipalign path in env ANDROID_ZIPALIGN=%s%n", zipalign);
-            return new FilePath(workspace.getChannel(), zipalign);
-        }
-
-        String androidHome = env.get("ANDROID_HOME");
-        if (StringUtils.isEmpty(androidHome)) {
-            throw new AbortException("failed to find zipalign: no environment variable ANDROID_ZIPALIGN or ANDROID_HOME");
-        }
-
-        FilePath buildTools = new FilePath(workspace.getChannel(), androidHome).child("build-tools");
-        List<FilePath> versionDirs;
-        try {
-            versionDirs = buildTools.listDirectories();
-        }
-        catch (Exception e) {
-            e.printStackTrace(logger);
-            throw new AbortException(String.format(
-                "failed to find zipalign: error listing build-tools versions in %s: %s",
-                buildTools.getRemote(), e.getLocalizedMessage()));
-        }
-
-        if (versionDirs.isEmpty()) {
-            throw new AbortException("failed to find zipalign: no build-tools directory in ANDROID_HOME path " + androidHome);
-        }
-
-        SortedMap<VersionNumber, FilePath> versions = new TreeMap<>();
-        for (FilePath versionDir : versionDirs) {
-            String versionName = versionDir.getName();
-            VersionNumber version = new VersionNumber(versionName);
-            versions.put(version, versionDir);
-        }
-
-        if (versions.isEmpty()) {
-            throw new AbortException(
-                "failed to find zipalign: no build-tools versions in ANDROID_HOME path " + buildTools);
-        }
-
-        VersionNumber latest = versions.lastKey();
-        FilePath zipalignPath = versions.get(latest);
-        zipalignPath = zipalignPath.child("zipalign");
-
-        try {
-            if (!zipalignPath.exists()) {
-                throw new AbortException("failed to find zipalign: zipalign does not exist in latest build-tools path " +
-                    zipalignPath.getParent().getRemote());
-            }
-        }
-        catch (Exception e) {
-            e.printStackTrace(logger);
-            throw new AbortException(
-                String.format("failed to find zipalign: error listing build-tools versions in %s: %s",
-                buildTools.getRemote(), e.getLocalizedMessage()));
-        }
-
-        logger.printf("[SignApksBuilder] found zipalign in Android SDK's latest build tools: %s%n", zipalignPath);
-        return zipalignPath;
     }
 
     @Extension
