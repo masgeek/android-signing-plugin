@@ -72,6 +72,7 @@
   </pluginRepositories>
 
   <dependencies>
+
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>credentials</artifactId>
