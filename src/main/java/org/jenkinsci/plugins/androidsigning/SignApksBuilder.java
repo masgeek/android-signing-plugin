@@ -136,6 +136,11 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                 throw new AbortException("Error reading keystore " + entry.getKeyStore());
             }
 
+            if (key == null || certChain == null) {
+                throw new AbortException("Alias " + entry.getAlias() +
+                    " does not exist or does not point to a key and certificate in certificate credentials " + entry.getKeyStore());
+            }
+
             String v1SigName = entry.getAlias();
             if (v1SigName == null) {
                 v1SigName = keyStoreCredential.getId();
