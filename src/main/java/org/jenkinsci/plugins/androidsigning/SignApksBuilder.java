@@ -84,6 +84,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
     }
 
     private boolean isIntermediateFailure(Run build) {
+        // TODO: does this work in pipeline?
         Result result = build.getResult();
         return result != null && result.isWorseThan(Result.UNSTABLE);
     }
