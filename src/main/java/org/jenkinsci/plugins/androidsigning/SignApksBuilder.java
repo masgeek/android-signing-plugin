@@ -26,6 +26,7 @@ import org.kohsuke.stapler.QueryParameter;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -187,11 +188,11 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
                         if (entry.getArchiveUnsignedApks()) {
                             listener.getLogger().printf("[SignApksBuilder] archiving unsigned APK %s%n", unsignedPathName);
-                            apksToArchive.put(unsignedPathName, stripWorkspace(workspace, unsignedPathName));
+                            apksToArchive.put(unsignedPathName, relativeToWorkspace(workspace, unsignedPathName));
                         }
                         if (entry.getArchiveSignedApks()) {
                             listener.getLogger().printf("[SignApksBuilder] archiving signed APK %s%n", signedPathName);
-                            apksToArchive.put(signedPathName, stripWorkspace(workspace, signedPathName));
+                            apksToArchive.put(signedPathName, relativeToWorkspace(workspace, signedPathName));
                         }
 
                     }
@@ -206,8 +207,10 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         }
     }
 
-    private String stripWorkspace(FilePath ws, String path) {
-        return path.replace(ws.getRemote(), "");
+    private String relativeToWorkspace(FilePath ws, String path) throws IOException, InterruptedException {
+        FilePath wsChild = ws.child(path);
+        URI relUri = ws.toURI().relativize(wsChild.toURI());
+        return relUri.getPath();
     }
 
     private StandardCertificateCredentials getKeystore(String keyStoreName, Item item) {
