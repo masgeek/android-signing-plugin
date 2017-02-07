@@ -66,10 +66,10 @@ by way of the `ANDROID_HOME` environment variable.  It searches for the latest
 version of the `build-tools` package installed in your SDK.  Alternatively, 
 you can set the overriding `ANDROID_ZIPALIGN` environment variable to the path
 of the `zipalign` executable you prefer, e.g., 
-`${ANDROID_HOME}/build-tools/25.0.2/zipalign`.  This therefore implies that 
-whatever Jenkins node is performing the build has access to an installed 
-Android SDK, which is likely the case if you built your APK in a Jenkins job as
-well.
+`${ANDROID_HOME}/build-tools/25.0.2/zipalign` (don't forget `.exe` for Windows).
+This therefore implies that whatever Jenkins node is performing the build has 
+access to an installed Android SDK, which is likely the case if you built your 
+APK in a Jenkins job as well.
 
 Once the prerequisites are setup, you can now add the _Sign APKs_ build step to
 a job.  The configuration UI is fairly straight forward.  Select the certificate
