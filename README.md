@@ -86,6 +86,11 @@ on your build script and there were no `signingConfig` blocks that applied to
 your APK.  In that case Gradle will have produced the necessary unsigned, 
 unaligned APK, ready for the Android Signing Plugin to sign.
 
+## Support
+
+Please submit all issues to [Jenkins Jira](https://issues.jenkins-ci.org/issues/?jql=project%3DJENKINS%20AND%20component%3Dandroid-signing-plugin).
+Do not use GitHub issues.
+
 ## License and Copyright
 
 See the included LICENSE and NOTICE text files for original Work and Derivative
