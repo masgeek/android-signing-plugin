@@ -97,4 +97,19 @@ public class ZipalignToolTest {
 
         explicitZipalign.getParent().deleteRecursive();
     }
+
+    @Test
+    public void triesWindowsExeIfZipalignDoesNotExist() throws IOException, InterruptedException, URISyntaxException {
+        URL androidHomeUrl = getClass().getResource("/win-android");
+        androidHome = new FilePath(new File(androidHomeUrl.toURI()));
+        androidHomeZipalign = androidHome.child("build-tools").child("1.0").child("zipalign.exe");
+
+        EnvVars envVars = new EnvVars();
+        envVars.put("ANDROID_HOME", androidHome.getRemote());
+        ZipalignTool zipalign = new ZipalignTool(envVars, workspace, System.out, null);
+        ArgumentListBuilder cmd = zipalign.commandFor("test.apk", "test-aligned.apk");
+
+        assertThat(cmd.toString(), startsWith(androidHomeZipalign.getRemote()));
+    }
+
 }

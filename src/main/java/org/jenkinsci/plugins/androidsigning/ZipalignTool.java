@@ -63,12 +63,14 @@ class ZipalignTool {
         }
 
         VersionNumber latest = versions.lastKey();
-        FilePath zipalign = versions.get(latest);
-        zipalign = zipalign.child("zipalign");
-
+        buildTools = versions.get(latest);
+        FilePath zipalign = buildTools.child("zipalign");
         try {
             if (!zipalign.exists()) {
-                throw new AbortException("failed to find zipalign: zipalign does not exist in latest build-tools path " +
+                zipalign = buildTools.child("zipalign.exe");
+            }
+            if (!zipalign.exists()) {
+                throw new AbortException("failed to find zipalign: no zipalign/zipalign.exe in latest build-tools path " +
                     zipalign.getParent().getRemote());
             }
         }
