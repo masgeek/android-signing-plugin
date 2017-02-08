@@ -8,10 +8,14 @@ import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.impl.CertificateCredentialsImpl;
 
+import org.apache.tools.ant.taskdefs.condition.IsTrue;
+import org.hamcrest.CoreMatchers;
+import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.matchers.JUnitMatchers;
 import org.junit.rules.TestName;
 import org.jvnet.hudson.test.FakeLauncher;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -22,6 +26,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.security.KeyStoreException;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -41,11 +46,14 @@ import hudson.model.TaskListener;
 import hudson.security.ACL;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.tasks.BuildWrapperDescriptor;
+import jenkins.model.StandardArtifactManager;
 import jenkins.tasks.SimpleBuildWrapper;
+import jenkins.util.VirtualFile;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.sameInstance;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -164,12 +172,9 @@ public class SignApksBuilderTest {
         return job;
     }
 
-    private void copyTestWorkspaceForBuild(FreeStyleBuild build) throws IOException, InterruptedException {
-        sourceWorkspace.copyRecursiveTo("*/**", build.getWorkspace());
-    }
-
     @Test
     public void credentailsExist() {
+
         List<StandardCertificateCredentials> result = CredentialsProvider.lookupCredentials(
             StandardCertificateCredentials.class, testJenkins.jenkins, ACL.SYSTEM, Collections.emptyList());
         StandardCertificateCredentials credentials = CredentialsMatchers.firstOrNull(result, CredentialsMatchers.withId(KEY_STORE_ID));
@@ -244,6 +249,32 @@ public class SignApksBuilderTest {
         List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
 
         assertThat(artifacts, empty());
+    }
+
+    @Test
+    public void signsTheApk() throws Exception {
+
+        List<Apk> entries = new ArrayList<>();
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", false, true));
+        SignApksBuilder builder = new SignApksBuilder(entries);
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+        FreeStyleBuild build = testJenkins.buildAndAssertSuccess(job);
+        List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
+        Run.Artifact signedApkArtifact = artifacts.get(0);
+        VirtualFile virtualSignedApk = build.getArtifactManager().root().child(signedApkArtifact.relativePath);
+        FilePath signedApkPath = build.getWorkspace().child(currentTestName.getMethodName() + "-signed.apk");
+        signedApkPath.copyFrom(virtualSignedApk.open());
+
+        VerifyApkCallable.VerifyResult result = signedApkPath.act(new VerifyApkCallable(TaskListener.NULL));
+
+        assertThat(result.isVerified, is(true));
+        assertThat(result.isVerifiedV1Scheme, is(true));
+        assertThat(result.isVerifiedV2Scheme, is(true));
+        assertThat(result.certs.length, is(1));
+        X509Certificate expectedCert = (X509Certificate) credentials.getKeyStore().getCertificate(getClass().getSimpleName());
+        assertThat(result.certs[0], equalTo(expectedCert));
+        assertThat(result.certs[0].getSubjectX500Principal().toString(), equalTo(expectedCert.getSubjectX500Principal().toString()));
     }
 
     @Test
