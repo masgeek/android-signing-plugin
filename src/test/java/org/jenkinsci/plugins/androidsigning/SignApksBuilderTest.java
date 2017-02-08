@@ -10,17 +10,16 @@ import com.cloudbees.plugins.credentials.impl.CertificateCredentialsImpl;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
+import org.jvnet.hudson.test.FakeLauncher;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
+import org.jvnet.hudson.test.PretendSlave;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.URL;
 import java.security.KeyStoreException;
 import java.util.ArrayList;
@@ -29,29 +28,87 @@ import java.util.Collections;
 import java.util.List;
 
 import hudson.EnvVars;
+import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.model.AbstractBuild;
+import hudson.Proc;
+import hudson.model.AbstractProject;
+import hudson.model.FreeStyleBuild;
+import hudson.model.FreeStyleProject;
+import hudson.model.Label;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.security.ACL;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
-import hudson.util.ArgumentListBuilder;
+import hudson.tasks.BuildWrapperDescriptor;
+import jenkins.tasks.SimpleBuildWrapper;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.sameInstance;
-import static org.hamcrest.CoreMatchers.startsWith;
+import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 
 public class SignApksBuilderTest {
 
-    static final String KEY_STORE_ID = SignApksBuilderTest.class.getSimpleName() + ".keyStore";
+    private static final String KEY_STORE_ID = SignApksBuilderTest.class.getSimpleName() + ".keyStore";
+
+    private static class CopyTestWorkspace extends SimpleBuildWrapper {
+
+        private FilePath sourceDir;
+
+        public CopyTestWorkspace(FilePath sourceDir) {
+            this.sourceDir = sourceDir;
+        }
+
+        @Override
+        public void setUp(Context context, Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener, EnvVars initialEnvironment) throws IOException, InterruptedException {
+            sourceDir.copyRecursiveTo("*/**", workspace);
+        }
+
+        @Extension
+        public static class DescriptorImpl extends BuildWrapperDescriptor {
+            @Override
+            public boolean isApplicable(AbstractProject<?, ?> item) {
+                return true;
+            }
+            @Override
+            public String getDisplayName() {
+                return getClass().getSimpleName();
+            }
+        }
+
+    }
+
+    private static class FakeZipalign implements FakeLauncher {
+        @Override
+        public Proc onLaunch(Launcher.ProcStarter p) throws IOException {
+            List<String> cmd = p.cmds();
+            String inPath = cmd.get(cmd.size() - 2);
+            String outPath = cmd.get(cmd.size() - 1);
+            FilePath workspace = p.pwd();
+            FilePath in = workspace.child(inPath);
+            FilePath out = workspace.child(outPath);
+            try {
+                in.copyTo(out);
+                return new FakeLauncher.FinishedProc(0);
+            }
+            catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
 
     @Rule
     public JenkinsRule testJenkins = new JenkinsRule();
 
-    StandardCertificateCredentials credentials = null;
+    @Rule
+    public TestName currentTestName = new TestName();
+
+    private StandardCertificateCredentials credentials = null;
+    private FilePath sourceWorkspace = null;
 
     @Before
     public void addCredentials() {
@@ -71,6 +128,23 @@ public class SignApksBuilderTest {
         }
     }
 
+    @Before
+    public void setupEnvironment() throws Exception {
+        EnvironmentVariablesNodeProperty prop = new EnvironmentVariablesNodeProperty();
+        EnvVars envVars = prop.getEnvVars();
+        URL androidHomeUrl = getClass().getResource("/android");
+        String androidHomePath = androidHomeUrl.getPath();
+        envVars.put("ANDROID_HOME", androidHomePath);
+        testJenkins.jenkins.getGlobalNodeProperties().add(prop);
+
+        URL workspaceUrl = getClass().getResource("/workspace");
+        sourceWorkspace = new FilePath(new File(workspaceUrl.toURI()));
+
+        FakeZipalign zipalign = new FakeZipalign();
+        PretendSlave slave = testJenkins.createPretendSlave(zipalign);
+        slave.setLabelString(slave.getLabelString() + " " + getClass().getSimpleName());
+    }
+
     @After
     public void removeCredentials() {
         CredentialsStore store = CredentialsProvider.lookupStores(testJenkins.jenkins).iterator().next();
@@ -81,6 +155,17 @@ public class SignApksBuilderTest {
             throw new RuntimeException(e);
         }
         credentials = null;
+    }
+
+    private FreeStyleProject createSignApkJob() throws IOException {
+        FreeStyleProject job = testJenkins.createFreeStyleProject(currentTestName.getMethodName());
+        job.getBuildWrappersList().add(new CopyTestWorkspace(sourceWorkspace));
+        job.setAssignedLabel(Label.get(getClass().getSimpleName()));
+        return job;
+    }
+
+    private void copyTestWorkspaceForBuild(FreeStyleBuild build) throws IOException, InterruptedException {
+        sourceWorkspace.copyRecursiveTo("*/**", build.getWorkspace());
     }
 
     @Test
@@ -98,39 +183,72 @@ public class SignApksBuilderTest {
     }
 
     @Test
-    @Ignore
-    public void findsZipalignInAndroidHomeEnvVar() throws Exception {
-        EnvironmentVariablesNodeProperty prop = new EnvironmentVariablesNodeProperty();
-        EnvVars envVars = prop.getEnvVars();
-        URL androidHomeUrl = getClass().getResource("/android");
-        String androidHomePath = androidHomeUrl.getPath();
-        String zipalignPath = new FilePath(new File(androidHomePath, "build-tools")).child("1.0").child("zipalign").getRemote();
-        envVars.put("ANDROID_HOME", androidHomePath);
-        testJenkins.jenkins.getGlobalNodeProperties().add(prop);
+    public void archivesTheSignedApk() throws Exception {
+
+        List<Apk> entries = new ArrayList<>();
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", false, true));
+        SignApksBuilder builder = new SignApksBuilder(entries);
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+        FreeStyleBuild build = testJenkins.buildAndAssertSuccess(job);
+        List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
+
+        assertThat(artifacts.size(), equalTo(1));
+        Run.Artifact signedApkArtifact = artifacts.get(0);
+        assertThat(signedApkArtifact.relativePath, equalTo("SignApksBuilderTest-signed.apk"));
+    }
+
+    @Test
+    public void archivesTheUnsignedApk() throws Exception {
+
+        List<Apk> entries = new ArrayList<>();
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", true, false));
+        SignApksBuilder builder = new SignApksBuilder(entries);
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+        FreeStyleBuild build = testJenkins.buildAndAssertSuccess(job);
+        List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
+
+        assertThat(artifacts.size(), equalTo(1));
+        Run.Artifact signedApkArtifact = artifacts.get(0);
+        assertThat(signedApkArtifact.relativePath, equalTo("SignApksBuilderTest-unsigned.apk"));
+    }
+
+    @Test
+    public void archivesTheUnsignedAndSignedApks() throws Exception {
 
         List<Apk> entries = new ArrayList<>();
         entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", true, true));
         SignApksBuilder builder = new SignApksBuilder(entries);
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+        FreeStyleBuild build = testJenkins.buildAndAssertSuccess(job);
+        List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
 
-        TaskListener listener = testJenkins.createTaskListener();
-        Run<?,?> run = Mockito.mock(AbstractBuild.class);
-        Mockito.when(run.getEnvironment(listener)).thenReturn(envVars);
-        URL workspaceUrl = getClass().getResource("/workspace");
-        FilePath workspace = new FilePath(new File(workspaceUrl.toURI()));
-        Launcher launcher = Mockito.mock(Launcher.class);
-        Launcher.ProcStarter starter = Mockito.mock(Launcher.ProcStarter.class);
-        Mockito.when(launcher.launch()).thenReturn(starter);
-        Mockito.when(starter.cmds(Mockito.any(ArgumentListBuilder.class))).thenReturn(starter);
-        Mockito.when(starter.pwd(Mockito.any(FilePath.class))).thenReturn(starter);
-        Mockito.when(starter.stdout(listener)).thenReturn(starter);
-        Mockito.when(starter.stderr(Mockito.any(OutputStream.class))).thenReturn(starter);
-        Mockito.when(starter.join()).thenReturn(0);
-        builder.perform(run, workspace, launcher, listener);
+        assertThat(artifacts.size(), equalTo(2));
+        Run.Artifact signedApkArtifact = artifacts.get(0);
+        Run.Artifact unsignedApkArtifact = artifacts.get(1);
+        assertThat(signedApkArtifact.relativePath, equalTo("SignApksBuilderTest-signed.apk"));
+        assertThat(unsignedApkArtifact.relativePath, equalTo("SignApksBuilderTest-unsigned.apk"));
+    }
 
-        ArgumentCaptor<ArgumentListBuilder> captureProcArgs = ArgumentCaptor.forClass(ArgumentListBuilder.class);
-        Mockito.verify(starter).cmds(captureProcArgs.capture());
+    @Test
+    public void archivesNothing() throws Exception {
 
-        assertThat(captureProcArgs.getValue().toString(), startsWith(zipalignPath));
+        List<Apk> entries = new ArrayList<>();
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", false, false));
+        SignApksBuilder builder = new SignApksBuilder(entries);
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+        FreeStyleBuild build = testJenkins.buildAndAssertSuccess(job);
+        List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
+
+        assertThat(artifacts, empty());
+    }
+
+    @Test
+    public void supportsMultipleApkGlobs() throws Exception {
+
     }
 
 }
