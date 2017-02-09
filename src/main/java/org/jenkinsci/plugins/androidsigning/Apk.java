@@ -5,6 +5,10 @@ import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import org.kohsuke.stapler.DataBoundConstructor;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 public final class Apk extends AbstractDescribableImpl<Apk> {
     private String keyStore;
     private String alias;
@@ -47,5 +51,17 @@ public final class Apk extends AbstractDescribableImpl<Apk> {
 
     public boolean getArchiveSignedApks() {
         return archiveSignedApks;
+    }
+
+    public String[] getSelectionGlobs() {
+        String[] globs = getSelection().split("\\s*,\\s*");
+        List<String> cleanGlobs = new ArrayList<>(globs.length);
+        for (String glob : globs) {
+            glob = glob.trim();
+            if (glob.length() > 0) {
+                cleanGlobs.add(glob);
+            }
+        }
+        return cleanGlobs.toArray(new String[cleanGlobs.size()]);
     }
 }

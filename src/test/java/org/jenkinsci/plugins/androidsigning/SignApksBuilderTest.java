@@ -8,14 +8,11 @@ import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.impl.CertificateCredentialsImpl;
 
-import org.apache.tools.ant.taskdefs.condition.IsTrue;
 import org.hamcrest.CoreMatchers;
-import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.matchers.JUnitMatchers;
 import org.junit.rules.TestName;
 import org.jvnet.hudson.test.FakeLauncher;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -46,13 +43,14 @@ import hudson.model.TaskListener;
 import hudson.security.ACL;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.tasks.BuildWrapperDescriptor;
-import jenkins.model.StandardArtifactManager;
 import jenkins.tasks.SimpleBuildWrapper;
 import jenkins.util.VirtualFile;
 
+import static org.hamcrest.CoreMatchers.endsWith;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.sameInstance;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertThat;
@@ -174,7 +172,6 @@ public class SignApksBuilderTest {
 
     @Test
     public void credentailsExist() {
-
         List<StandardCertificateCredentials> result = CredentialsProvider.lookupCredentials(
             StandardCertificateCredentials.class, testJenkins.jenkins, ACL.SYSTEM, Collections.emptyList());
         StandardCertificateCredentials credentials = CredentialsMatchers.firstOrNull(result, CredentialsMatchers.withId(KEY_STORE_ID));
@@ -189,7 +186,6 @@ public class SignApksBuilderTest {
 
     @Test
     public void archivesTheSignedApk() throws Exception {
-
         List<Apk> entries = new ArrayList<>();
         entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", false, true));
         SignApksBuilder builder = new SignApksBuilder(entries);
@@ -205,7 +201,6 @@ public class SignApksBuilderTest {
 
     @Test
     public void archivesTheUnsignedApk() throws Exception {
-
         List<Apk> entries = new ArrayList<>();
         entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", true, false));
         SignApksBuilder builder = new SignApksBuilder(entries);
@@ -221,7 +216,6 @@ public class SignApksBuilderTest {
 
     @Test
     public void archivesTheUnsignedAndSignedApks() throws Exception {
-
         List<Apk> entries = new ArrayList<>();
         entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", true, true));
         SignApksBuilder builder = new SignApksBuilder(entries);
@@ -239,7 +233,6 @@ public class SignApksBuilderTest {
 
     @Test
     public void archivesNothing() throws Exception {
-
         List<Apk> entries = new ArrayList<>();
         entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", false, false));
         SignApksBuilder builder = new SignApksBuilder(entries);
@@ -253,7 +246,6 @@ public class SignApksBuilderTest {
 
     @Test
     public void signsTheApk() throws Exception {
-
         List<Apk> entries = new ArrayList<>();
         entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", false, true));
         SignApksBuilder builder = new SignApksBuilder(entries);
@@ -265,7 +257,6 @@ public class SignApksBuilderTest {
         VirtualFile virtualSignedApk = build.getArtifactManager().root().child(signedApkArtifact.relativePath);
         FilePath signedApkPath = build.getWorkspace().child(currentTestName.getMethodName() + "-signed.apk");
         signedApkPath.copyFrom(virtualSignedApk.open());
-
         VerifyApkCallable.VerifyResult result = signedApkPath.act(new VerifyApkCallable(TaskListener.NULL));
 
         assertThat(result.isVerified, is(true));
@@ -275,6 +266,81 @@ public class SignApksBuilderTest {
         X509Certificate expectedCert = (X509Certificate) credentials.getKeyStore().getCertificate(getClass().getSimpleName());
         assertThat(result.certs[0], equalTo(expectedCert));
         assertThat(result.certs[0].getSubjectX500Principal().toString(), equalTo(expectedCert.getSubjectX500Principal().toString()));
+    }
+
+    @Test
+    public void supportsApksWithoutUnsignedSuffix() throws Exception {
+        List<Apk> entries = new ArrayList<>();
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "SignApksBuilderTest.apk", true, true));
+        SignApksBuilder builder = new SignApksBuilder(entries);
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+        FreeStyleBuild build = testJenkins.buildAndAssertSuccess(job);
+        List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
+
+        Run.Artifact signedApkArtifact = artifacts.get(0);
+        Run.Artifact unsignedApkArtifact = artifacts.get(1);
+
+        VirtualFile virtualSignedApk = build.getArtifactManager().root().child(signedApkArtifact.relativePath);
+        FilePath signedApkPath = build.getWorkspace().child(currentTestName.getMethodName() + "-signed.apk");
+        signedApkPath.copyFrom(virtualSignedApk.open());
+        VerifyApkCallable.VerifyResult result = signedApkPath.act(new VerifyApkCallable(TaskListener.NULL));
+
+        assertThat(result.isVerified, is(true));
+        assertThat(result.isVerifiedV1Scheme, is(true));
+        assertThat(result.isVerifiedV2Scheme, is(true));
+        assertThat(result.certs.length, is(1));
+        X509Certificate expectedCert = (X509Certificate) credentials.getKeyStore().getCertificate(getClass().getSimpleName());
+        assertThat(result.certs[0], equalTo(expectedCert));
+        assertThat(result.certs[0].getSubjectX500Principal().toString(), equalTo(expectedCert.getSubjectX500Principal().toString()));
+        assertThat(artifacts.size(), equalTo(2));
+        assertThat(signedApkArtifact.relativePath, equalTo("SignApksBuilderTest-signed.apk"));
+        assertThat(unsignedApkArtifact.relativePath, equalTo("SignApksBuilderTest.apk"));
+    }
+
+    @Test
+    public void signsAllMatchingApks() throws Exception {
+        List<Apk> entries = new ArrayList<>();
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "SignApksBuilderTest-*.apk", true, true));
+        SignApksBuilder builder = new SignApksBuilder(entries);
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+        FreeStyleBuild build = testJenkins.buildAndAssertSuccess(job);
+        List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
+
+        assertThat(artifacts.size(), equalTo(4));
+        assertThat(artifacts, hasItems(
+            hasProperty("fileName", endsWith("SignApksBuilderTest-chocolate_flavor.apk")),
+            hasProperty("fileName", endsWith("SignApksBuilderTest-chocolate_flavor-signed.apk")),
+            hasProperty("fileName", endsWith("SignApksBuilderTest-unsigned.apk")),
+            hasProperty("fileName", endsWith("SignApksBuilderTest-signed.apk"))));
+
+        artifacts.forEach(artifact -> {
+            try {
+                if (!artifact.getFileName().endsWith("-signed.apk")) {
+                    return;
+                }
+                VirtualFile virtualSignedApk = build.getArtifactManager().root().child(artifact.relativePath);
+                FilePath signedApkPath = build.getWorkspace().child("verify-" + artifact.getFileName());
+                signedApkPath.copyFrom(virtualSignedApk.open());
+                VerifyApkCallable.VerifyResult result = signedApkPath.act(new VerifyApkCallable(TaskListener.NULL));
+                assertThat(result.isVerified, is(true));
+                assertThat(result.isVerifiedV1Scheme, is(true));
+                assertThat(result.isVerifiedV2Scheme, is(true));
+                assertThat(result.certs.length, is(1));
+                X509Certificate expectedCert = (X509Certificate) credentials.getKeyStore().getCertificate(getClass().getSimpleName());
+                assertThat(result.certs[0], equalTo(expectedCert));
+                assertThat(result.certs[0].getSubjectX500Principal().toString(), equalTo(expectedCert.getSubjectX500Principal().toString()));
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    @Test
+    public void signsMultipleApksThatWillHaveConflictingSignedFileNames() {
+
     }
 
     @Test

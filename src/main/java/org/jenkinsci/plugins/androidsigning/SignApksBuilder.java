@@ -39,6 +39,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 
@@ -116,8 +118,6 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
         Map<String,String> apksToArchive = new LinkedHashMap<>();
         for (Apk entry : entries) {
-            StringTokenizer rpmGlobTokenizer = new StringTokenizer(entry.getSelection(), ",");
-
             StandardCertificateCredentials keyStoreCredential = getKeystore(entry.getKeyStore(), run.getParent());
             char[] storePassword = keyStoreCredential.getPassword().getPlainText().toCharArray();
             // TODO: add key password support
@@ -148,18 +148,22 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                 v1SigName = keyStoreCredential.getId();
             }
 
-            while (rpmGlobTokenizer.hasMoreTokens()) {
-                String rpmGlob = rpmGlobTokenizer.nextToken();
+            String[] globs = entry.getSelectionGlobs();
+            for (String rpmGlob : globs) {
                 FilePath[] matchedApks = workspace.list(rpmGlob);
                 if (ArrayUtils.isEmpty(matchedApks)) {
                     throw new AbortException("No APKs in workspace matching " + rpmGlob);
                 }
                 else {
                     for (FilePath apkPath : matchedApks) {
-                        String unsignedPathName = apkPath.absolutize().getRemote();
+                        apkPath = apkPath.absolutize();
+                        String unsignedPathName = apkPath.getRemote();
                         // TODO: implicit coupling to the gradle android plugin's naming convention here
-                        String alignedPathName = unsignedPathName.replace("unsigned", "unsigned-aligned");
-                        String signedPathName = alignedPathName.replace("unsigned-aligned", "signed");
+                        Pattern stripUnsignedPattern = Pattern.compile("(-?unsigned)?.apk$", Pattern.CASE_INSENSITIVE);
+                        Matcher stripUnsigned = stripUnsignedPattern.matcher(unsignedPathName);
+                        String strippedApkPathName = stripUnsigned.replaceFirst("");
+                        String alignedPathName = strippedApkPathName + "-aligned.apk";
+                        String signedPathName = strippedApkPathName + "-signed.apk";
 
                         ArgumentListBuilder zipalignCommand = zipalign.commandFor(unsignedPathName, alignedPathName);
 
