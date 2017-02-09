@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import hudson.EnvVars;
 import hudson.Extension;
@@ -99,6 +100,9 @@ public class SignApksBuilderTest {
             FilePath in = workspace.child(inPath);
             FilePath out = workspace.child(outPath);
             try {
+                if (!out.getParent().isDirectory()) {
+                    throw new IOException("destination directory does not exist: " + out.getParent());
+                }
                 in.copyTo(out);
                 return new FakeLauncher.FinishedProc(0);
             }
@@ -358,12 +362,12 @@ public class SignApksBuilderTest {
             hasProperty("fileName", endsWith("SignApksBuilderTest-unsigned.apk")),
             hasProperty("fileName", endsWith("SignApksBuilderTest-signed.apk"))));
 
+        //noinspection Duplicates
         artifacts.forEach(artifact -> {
             try {
                 if (!artifact.getFileName().endsWith("-signed.apk")) {
                     return;
                 }
-
                 assertThat(buildArtifact(build, artifact), isSignedWith(entries.get(0)));
             }
             catch (Exception e) {
@@ -383,11 +387,16 @@ public class SignApksBuilderTest {
         List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
 
         assertThat(artifacts.size(), equalTo(4));
-        assertThat(artifacts, hasItems(
-            hasProperty("relativePath", endsWith(KEY_STORE_ID + "-0/SignApksBuilderTest/SignApksBuilderTest.apk")),
-            hasProperty("relativePath", endsWith(KEY_STORE_ID + "-0/SignApksBuilderTest/SignApksBuilderTest-signed.apk")),
-            hasProperty("relativePath", endsWith(KEY_STORE_ID + "-0/SignApksBuilderTest-unsigned/SignApksBuilderTest-unsigned.apk")),
-            hasProperty("relativePath", endsWith(KEY_STORE_ID + "-0/SignApksBuilderTest-unsigned/SignApksBuilderTest-signed.apk"))));
+
+        List<String> relPaths = artifacts.stream().map(artifact -> artifact.relativePath).collect(Collectors.toList());
+        assertThat(relPaths, hasItems(
+            KEY_STORE_ID + "/1/SignApksBuilderTest.apk",
+            KEY_STORE_ID + "/1/SignApksBuilderTest-signed.apk",
+            KEY_STORE_ID + "/2/SignApksBuilderTest-unsigned.apk",
+            KEY_STORE_ID + "/2/SignApksBuilderTest-signed.apk"));
+
+        FilePath[] workApks = build.getWorkspace().list(KEY_STORE_ID + "/**/*.apk");
+        assertThat(workApks.length, equalTo(4));
 
         //noinspection Duplicates
         artifacts.forEach(artifact -> {

@@ -115,8 +115,8 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         }
 
         ZipalignTool zipalign = new ZipalignTool(env, workspace, listener.getLogger(), zipalignPath);
-
         Map<String,String> apksToArchive = new LinkedHashMap<>();
+        int apkCounter = 1;
         for (Apk entry : entries) {
             StandardCertificateCredentials keyStoreCredential = getKeystore(entry.getKeyStore(), run.getParent());
             char[] storePassword = keyStoreCredential.getPassword().getPlainText().toCharArray();
@@ -148,58 +148,63 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                 v1SigName = keyStoreCredential.getId();
             }
 
+            String safeKeyStoreId = entry.getKeyStore().replaceAll("[^\\w.-]+[^$]", "_");
             String[] globs = entry.getSelectionGlobs();
-            for (String rpmGlob : globs) {
-                FilePath[] matchedApks = workspace.list(rpmGlob);
+            for (String glob : globs) {
+                FilePath[] matchedApks = workspace.list(glob);
                 if (ArrayUtils.isEmpty(matchedApks)) {
-                    throw new AbortException("No APKs in workspace matching " + rpmGlob);
+                    throw new AbortException("No APKs in workspace matching " + glob);
                 }
-                else {
-                    for (FilePath apkPath : matchedApks) {
-                        apkPath = apkPath.absolutize();
-                        String unsignedPathName = apkPath.getRemote();
-                        // TODO: implicit coupling to the gradle android plugin's naming convention here
-                        Pattern stripUnsignedPattern = Pattern.compile("(-?unsigned)?.apk$", Pattern.CASE_INSENSITIVE);
-                        Matcher stripUnsigned = stripUnsignedPattern.matcher(unsignedPathName);
-                        String strippedApkPathName = stripUnsigned.replaceFirst("");
-                        String alignedPathName = strippedApkPathName + "-aligned.apk";
-                        String signedPathName = strippedApkPathName + "-signed.apk";
+                for (FilePath apkPath : matchedApks) {
+                    apkPath = apkPath.absolutize();
+                    String archiveDirName = safeKeyStoreId + "/" + apkCounter++ + "/";
 
-                        ArgumentListBuilder zipalignCommand = zipalign.commandFor(unsignedPathName, alignedPathName);
+                    String unsignedPathName = apkPath.getRemote();
+                    // TODO: implicit coupling to the gradle android plugin's naming convention here
+                    Pattern stripUnsignedPattern = Pattern.compile("(-?unsigned)?.apk$", Pattern.CASE_INSENSITIVE);
+                    Matcher stripUnsigned = stripUnsignedPattern.matcher(apkPath.getName());
+                    String strippedApkPathName = stripUnsigned.replaceFirst("");
+                    String alignedRelPathName = archiveDirName + strippedApkPathName + "-aligned.apk";
+                    String signedRelPathName = archiveDirName + strippedApkPathName + "-signed.apk";
 
-                        int zipalignResult = launcher.launch()
-                            .cmds(zipalignCommand)
-                            .pwd(workspace)
-                            .stdout(listener)
-                            .stderr(listener.getLogger())
-                            .join();
+                    workspace.child(archiveDirName).mkdirs();
 
-                        if (zipalignResult != 0) {
-                            listener.fatalError("[SignApksBuilder] zipalign failed: exit code %d", zipalignResult);
-                            throw new AbortException(String.format("zipalign failed on APK %s: exit code %d", unsignedPathName, zipalignResult));
-                        }
+                    ArgumentListBuilder zipalignCommand = zipalign.commandFor(unsignedPathName, alignedRelPathName);
+                    listener.getLogger().printf("[SignApksBuilder] %s", zipalignCommand);
+                    int zipalignResult = launcher.launch()
+                        .cmds(zipalignCommand)
+                        .pwd(workspace)
+                        .stdout(listener)
+                        .stderr(listener.getLogger())
+                        .join();
 
-                        FilePath alignedPath = workspace.child(alignedPathName);
-                        if (!alignedPath.exists()) {
-                            throw new AbortException(String.format("aligned APK does not exist: %s", alignedPathName));
-                        }
+                    if (zipalignResult != 0) {
+                        listener.fatalError("[SignApksBuilder] zipalign failed: exit code %d", zipalignResult);
+                        throw new AbortException(String.format("zipalign failed on APK %s: exit code %d", unsignedPathName, zipalignResult));
+                    }
 
-                        listener.getLogger().printf("[SignApksBuilder] signing APK %s%n", alignedPathName);
+                    FilePath alignedPath = workspace.child(alignedRelPathName);
+                    if (!alignedPath.exists()) {
+                        throw new AbortException(String.format("aligned APK does not exist: %s", alignedRelPathName));
+                    }
 
-                        final SignApkCallable signApk = new SignApkCallable(key, certChain, v1SigName, signedPathName, listener);
-                        alignedPath.act(signApk);
+                    listener.getLogger().printf("[SignApksBuilder] signing APK %s%n", alignedRelPathName);
 
-                        listener.getLogger().printf("[SignApksBuilder] signed APK %s%n", signedPathName);
+                    FilePath signedPath = workspace.child(signedRelPathName);
+                    final SignApkCallable signApk = new SignApkCallable(key, certChain, v1SigName, signedPath.getRemote(), listener);
+                    alignedPath.act(signApk);
 
-                        if (entry.getArchiveUnsignedApks()) {
-                            listener.getLogger().printf("[SignApksBuilder] archiving unsigned APK %s%n", unsignedPathName);
-                            apksToArchive.put(apkPath.getName(), relativeToWorkspace(workspace, apkPath));
-                        }
-                        if (entry.getArchiveSignedApks()) {
-                            listener.getLogger().printf("[SignApksBuilder] archiving signed APK %s%n", signedPathName);
-                            FilePath signedPath = workspace.child(signedPathName);
-                            apksToArchive.put(signedPath.getName(), relativeToWorkspace(workspace, signedPath));
-                        }
+                    listener.getLogger().printf("[SignApksBuilder] signed APK %s%n", signedRelPathName);
+
+
+                    if (entry.getArchiveUnsignedApks()) {
+                        listener.getLogger().printf("[SignApksBuilder] archiving unsigned APK %s%n", unsignedPathName);
+                        String rel = relativeToWorkspace(workspace, apkPath);
+                        apksToArchive.put(archiveDirName + apkPath.getName(), rel);
+                    }
+                    if (entry.getArchiveSignedApks()) {
+                        listener.getLogger().printf("[SignApksBuilder] archiving signed APK %s%n", signedRelPathName);
+                        apksToArchive.put(signedRelPathName, signedRelPathName);
                     }
                 }
             }
