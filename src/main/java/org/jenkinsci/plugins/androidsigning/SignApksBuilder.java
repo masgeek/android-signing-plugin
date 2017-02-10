@@ -157,7 +157,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                 }
                 for (FilePath apkPath : matchedApks) {
                     apkPath = apkPath.absolutize();
-                    String archiveDirName = safeKeyStoreId + "/" + apkCounter++ + "/";
+                    String archiveDirName = getClass().getSimpleName() + "/" + safeKeyStoreId + "-" + apkCounter++ + "/";
 
                     String unsignedPathName = apkPath.getRemote();
                     // TODO: implicit coupling to the gradle android plugin's naming convention here
@@ -167,7 +167,10 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                     String alignedRelPathName = archiveDirName + strippedApkPathName + "-aligned.apk";
                     String signedRelPathName = archiveDirName + strippedApkPathName + "-signed.apk";
 
-                    workspace.child(archiveDirName).mkdirs();
+                    FilePath archiveDir = workspace.child(archiveDirName);
+                    archiveDir.mkdirs();
+                    archiveDir.deleteContents();
+
 
                     ArgumentListBuilder zipalignCommand = zipalign.commandFor(unsignedPathName, alignedRelPathName);
                     listener.getLogger().printf("[SignApksBuilder] %s", zipalignCommand);
@@ -195,7 +198,6 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                     alignedPath.act(signApk);
 
                     listener.getLogger().printf("[SignApksBuilder] signed APK %s%n", signedRelPathName);
-
 
                     if (entry.getArchiveUnsignedApks()) {
                         listener.getLogger().printf("[SignApksBuilder] archiving unsigned APK %s%n", unsignedPathName);

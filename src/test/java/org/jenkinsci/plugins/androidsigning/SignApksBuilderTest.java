@@ -390,12 +390,12 @@ public class SignApksBuilderTest {
 
         List<String> relPaths = artifacts.stream().map(artifact -> artifact.relativePath).collect(Collectors.toList());
         assertThat(relPaths, hasItems(
-            KEY_STORE_ID + "/1/SignApksBuilderTest.apk",
-            KEY_STORE_ID + "/1/SignApksBuilderTest-signed.apk",
-            KEY_STORE_ID + "/2/SignApksBuilderTest-unsigned.apk",
-            KEY_STORE_ID + "/2/SignApksBuilderTest-signed.apk"));
+            "SignApksBuilder/" + KEY_STORE_ID + "-1/SignApksBuilderTest.apk",
+            "SignApksBuilder/" + KEY_STORE_ID + "-1/SignApksBuilderTest-signed.apk",
+            "SignApksBuilder/" + KEY_STORE_ID + "-2/SignApksBuilderTest-unsigned.apk",
+            "SignApksBuilder/" + KEY_STORE_ID + "-2/SignApksBuilderTest-signed.apk"));
 
-        FilePath[] workApks = build.getWorkspace().list(KEY_STORE_ID + "/**/*.apk");
+        FilePath[] workApks = build.getWorkspace().list("SignApksBuilder/" + KEY_STORE_ID + "-*/**/*.apk");
         assertThat(workApks.length, equalTo(4));
 
         //noinspection Duplicates
@@ -404,7 +404,6 @@ public class SignApksBuilderTest {
                 if (!artifact.getFileName().endsWith("-signed.apk")) {
                     return;
                 }
-
                 assertThat(buildArtifact(build, artifact), isSignedWith(entries.get(0)));
             }
             catch (Exception e) {
