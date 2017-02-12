@@ -2,14 +2,15 @@ package org.jenkinsci.plugins.androidsigning.compatibility;
 
 import org.jenkinsci.plugins.androidsigning.Apk;
 import org.jenkinsci.plugins.androidsigning.SignApksBuilder;
+import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.recipes.LocalData;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.net.URL;
 
-import hudson.XmlFile;
+import hudson.model.FreeStyleProject;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
@@ -18,11 +19,15 @@ import static org.junit.Assert.assertThat;
 
 public class SignApksBuilderCompatibility_2_0_8_Test {
 
+    @Rule
+    public JenkinsRule testJenkins = new JenkinsRule();
+
     @Test
-    public void compatibleWith_2_0_8_config() throws URISyntaxException, IOException {
-        URL configUrl = getClass().getResource(getClass().getSimpleName() + ".xml");
-        XmlFile config = new XmlFile(new File(configUrl.toURI()));
-        SignApksBuilder builder = (SignApksBuilder) config.read();
+    @LocalData
+    public void compatibleWith_2_0_8() throws URISyntaxException, IOException {
+
+        FreeStyleProject job = (FreeStyleProject) testJenkins.jenkins.getItem(getClass().getSimpleName());
+        SignApksBuilder builder = (SignApksBuilder) job.getBuilders().get(0);
 
         assertThat(builder.getEntries().size(), equalTo(3));
 
