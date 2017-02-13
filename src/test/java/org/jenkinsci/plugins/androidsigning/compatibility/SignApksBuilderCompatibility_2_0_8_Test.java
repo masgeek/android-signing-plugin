@@ -34,21 +34,21 @@ public class SignApksBuilderCompatibility_2_0_8_Test {
         Apk entry = builder.getEntries().get(0);
         assertThat(entry.getKeyStore(), equalTo("android-signing-1"));
         assertThat(entry.getAlias(), equalTo("key1"));
-        assertThat(entry.getSelection(), equalTo("build/outputs/apk/*-unsigned.apk"));
+        assertThat(entry.getApksToSign(), equalTo("build/outputs/apk/*-unsigned.apk"));
         assertThat(entry.getArchiveUnsignedApks(), is(true));
         assertThat(entry.getArchiveSignedApks(), is(true));
 
         entry = builder.getEntries().get(1);
         assertThat(entry.getKeyStore(), equalTo("android-signing-1"));
         assertThat(entry.getAlias(), equalTo("key2"));
-        assertThat(entry.getSelection(), equalTo("SignApksBuilderTest.apk, SignApksBuilderTest-choc*.apk"));
+        assertThat(entry.getApksToSign(), equalTo("SignApksBuilderTest.apk, SignApksBuilderTest-choc*.apk"));
         assertThat(entry.getArchiveUnsignedApks(), is(false));
         assertThat(entry.getArchiveSignedApks(), is(true));
 
         entry = builder.getEntries().get(2);
         assertThat(entry.getKeyStore(), equalTo("android-signing-2"));
         assertThat(entry.getAlias(), equalTo("key1"));
-        assertThat(entry.getSelection(), equalTo("**/*.apk"));
+        assertThat(entry.getApksToSign(), equalTo("**/*.apk"));
         assertThat(entry.getArchiveUnsignedApks(), is(false));
         assertThat(entry.getArchiveSignedApks(), is(false));
     }

@@ -19,9 +19,9 @@ import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 
 import org.apache.commons.lang.ArrayUtils;
-import org.kohsuke.stapler.AncestorInPath;
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.DataBoundSetter;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,12 +33,10 @@ import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -52,7 +50,6 @@ import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.Item;
-import hudson.model.ItemGroup;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
@@ -61,23 +58,21 @@ import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.ArgumentListBuilder;
-import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
 import jenkins.MasterToSlaveFileCallable;
-import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 import jenkins.util.BuildListenerAdapter;
 
 public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
-    private static final List<DomainRequirement> NO_REQUIREMENTS = Collections.emptyList();
+    static final List<DomainRequirement> NO_REQUIREMENTS = Collections.emptyList();
 
     private List<Apk> entries = Collections.emptyList();
-    transient private String zipalignPath;
+    private String androidHome;
+    private String zipalignPath;
 
     @DataBoundConstructor
-    public SignApksBuilder(List<Apk> apks) {
-        this.entries = apks;
+    public SignApksBuilder(List<Apk> entries) {
+        this.entries = entries;
         if (this.entries == null) {
             this.entries = Collections.emptyList();
         }
@@ -89,12 +84,24 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         return result != null && result.isWorseThan(Result.UNSTABLE);
     }
 
-    @SuppressWarnings("unused")
-    public void setZipalignPath(String x) {
-        this.zipalignPath = x;
+    @DataBoundSetter
+    public void setAndroidHome(String x) {
+        androidHome = x;
     }
 
-    @SuppressWarnings("unused")
+    public String getAndroidHome() {
+        return androidHome;
+    }
+
+    @DataBoundSetter
+    public void setZipalignPath(String x) {
+        zipalignPath = x;
+    }
+
+    public String getZipalignPath() {
+        return zipalignPath;
+    }
+
     public List<Apk> getEntries() {
         return entries;
     }
@@ -172,7 +179,6 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                     archiveDir.mkdirs();
                     archiveDir.deleteContents();
 
-
                     ArgumentListBuilder zipalignCommand = zipalign.commandFor(unsignedPathName, alignedRelPathName);
                     listener.getLogger().printf("[SignApksBuilder] %s", zipalignCommand);
                     int zipalignResult = launcher.launch()
@@ -232,7 +238,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
     }
 
     @Extension
-    @SuppressWarnings("unused")
+    @Symbol("signApks")
     public static final class SignApksDescriptor extends BuildStepDescriptor<Builder> {
 
         public static final String DISPLAY_NAME = Messages.job_displayName();
@@ -248,40 +254,10 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         }
 
         @Override
-        public String getDisplayName() {
+        public @Nonnull String getDisplayName() {
             return DISPLAY_NAME;
         }
 
-        public ListBoxModel doFillKeystoreItems(@AncestorInPath ItemGroup<?> parent) {
-            if (parent == null) {
-                parent = Jenkins.getInstance();
-            }
-            ListBoxModel items = new ListBoxModel();
-            List<StandardCertificateCredentials> keys = CredentialsProvider.lookupCredentials(
-                    StandardCertificateCredentials.class, parent, ACL.SYSTEM, NO_REQUIREMENTS);
-            for (StandardCertificateCredentials key : keys) {
-                items.add(key.getDescription(), key.getId());
-            }
-            return items;
-        }
-
-        public FormValidation doCheckAlias(@AncestorInPath AbstractProject project, @QueryParameter String value) throws IOException {
-            return FormValidation.validateRequired(value);
-        }
-
-        public FormValidation doCheckSelection(@AncestorInPath AbstractProject project, @QueryParameter String value) throws IOException, InterruptedException {
-            FilePath someWorkspace = project.getSomeWorkspace();
-            if (someWorkspace != null) {
-                String msg = someWorkspace.validateAntFileMask(value, FilePath.VALIDATE_ANT_FILE_MASK_BOUND);
-                if (msg != null) {
-                    return FormValidation.error(msg);
-                }
-                return FormValidation.ok();
-            }
-            else {
-                return FormValidation.warning(Messages.noworkspace());
-            }
-        }
     }
 
     static class SignApkCallable extends MasterToSlaveFileCallable<Void> {

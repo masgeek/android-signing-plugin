@@ -7,9 +7,12 @@ import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.impl.CertificateCredentialsImpl;
+import com.gargoylesoftware.htmlunit.html.HtmlForm;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
+import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -26,6 +29,7 @@ import java.net.URL;
 import java.security.KeyStoreException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
@@ -415,6 +419,24 @@ public class SignApksBuilderTest {
     @Test
     public void supportsMultipleApkGlobs() throws Exception {
 
+    }
+
+    @Test
+    public void identitySubmission() throws Exception {
+        Apk entry = new Apk(KEY_STORE_ID, getClass().getSimpleName(), "**/*-unsigned.apk", false, true);
+        SignApksBuilder original = new SignApksBuilder(Arrays.asList(entry));
+        FreeStyleProject job = testJenkins.createFreeStyleProject();
+        job.getBuildersList().add(original);
+
+        JenkinsRule.WebClient browser = testJenkins.createWebClient();
+        HtmlPage configPage = browser.getPage(job, "configure");
+        HtmlForm form = configPage.getFormByName("config");
+        testJenkins.submit(form);
+        SignApksBuilder submitted = (SignApksBuilder) job.getBuildersList().get(0);
+
+        assertThat(original.getEntries().size(), Matchers.equalTo(1));
+        assertThat(submitted.getEntries().size(), Matchers.equalTo(1));
+        testJenkins.assertEqualBeans(submitted.getEntries().get(0), original.getEntries().get(0), "keyStore,alias,apksToSign,archiveUnsignedApks,archiveSignedApks");
     }
 
 }
