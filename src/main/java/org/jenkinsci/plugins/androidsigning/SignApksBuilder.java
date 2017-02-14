@@ -122,7 +122,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             env = new EnvVars();
         }
 
-        ZipalignTool zipalign = new ZipalignTool(env, workspace, listener.getLogger(), zipalignPath);
+        ZipalignTool zipalign = new ZipalignTool(env, workspace, listener.getLogger(), androidHome, zipalignPath);
         Map<String,String> apksToArchive = new LinkedHashMap<>();
         int apkCounter = 1;
         for (Apk entry : entries) {

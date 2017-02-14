@@ -57,6 +57,7 @@ import static org.hamcrest.CoreMatchers.endsWith;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.sameInstance;
+import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertThat;
@@ -95,8 +96,12 @@ public class SignApksBuilderTest {
     }
 
     private static class FakeZipalign implements FakeLauncher {
+
+        private Launcher.ProcStarter lastProc;
+
         @Override
         public Proc onLaunch(Launcher.ProcStarter p) throws IOException {
+            lastProc = p;
             List<String> cmd = p.cmds();
             String inPath = cmd.get(cmd.size() - 2);
             String outPath = cmd.get(cmd.size() - 1);
@@ -188,6 +193,8 @@ public class SignApksBuilderTest {
 
     private StandardCertificateCredentials credentials = null;
     private FilePath sourceWorkspace = null;
+    private FilePath androidHome = null;
+    private FakeZipalign zipalignLauncer = null;
 
     @Before
     public void addCredentials() {
@@ -215,12 +222,13 @@ public class SignApksBuilderTest {
         String androidHomePath = androidHomeUrl.getPath();
         envVars.put("ANDROID_HOME", androidHomePath);
         testJenkins.jenkins.getGlobalNodeProperties().add(prop);
+        androidHome = new FilePath(new File(androidHomeUrl.toURI()));
 
         URL workspaceUrl = getClass().getResource("/workspace");
         sourceWorkspace = new FilePath(new File(workspaceUrl.toURI()));
 
-        FakeZipalign zipalign = new FakeZipalign();
-        PretendSlave slave = testJenkins.createPretendSlave(zipalign);
+        zipalignLauncer = new FakeZipalign();
+        PretendSlave slave = testJenkins.createPretendSlave(zipalignLauncer);
         slave.setLabelString(slave.getLabelString() + " " + getClass().getSimpleName());
     }
 
@@ -414,6 +422,36 @@ public class SignApksBuilderTest {
                 throw new RuntimeException(e);
             }
         });
+    }
+
+    @Test
+    public void usesAndroidHomeOverride() throws Exception {
+        List<Apk> entries = new ArrayList<>();
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", false, true));
+        SignApksBuilder builder = new SignApksBuilder(entries);
+        FilePath androidHomeOverride = testJenkins.jenkins.getRootPath().createTempDir("android-home-override", null);
+        androidHome.copyRecursiveTo(androidHomeOverride);
+        builder.setAndroidHome(androidHomeOverride.getRemote());
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+        testJenkins.buildAndAssertSuccess(job);
+
+        assertThat(zipalignLauncer.lastProc.cmds().get(0), startsWith(androidHomeOverride.getRemote()));
+    }
+
+    @Test
+    public void usesZipalignPathOverride() throws Exception {
+        List<Apk> entries = new ArrayList<>();
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", false, true));
+        SignApksBuilder builder = new SignApksBuilder(entries);
+        FilePath zipalignOverride = testJenkins.jenkins.getRootPath().createTempDir("zipalign-override", null);
+        zipalignOverride = zipalignOverride.createTextTempFile("zipalign-override", ".sh", "echo \"zipalign $@\"");
+        builder.setZipalignPath(zipalignOverride.getRemote());
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+        testJenkins.buildAndAssertSuccess(job);
+
+        assertThat(zipalignLauncer.lastProc.cmds().get(0), startsWith(zipalignOverride.getRemote()));
     }
 
     @Test
