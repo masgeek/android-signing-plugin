@@ -241,7 +241,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
     @Symbol("signApks")
     public static final class SignApksDescriptor extends BuildStepDescriptor<Builder> {
 
-        public static final String DISPLAY_NAME = Messages.job_displayName();
+        public static final String DISPLAY_NAME = Messages.builderDisplayName();
 
         @Override
         public boolean isApplicable(Class<? extends AbstractProject> jobType) {

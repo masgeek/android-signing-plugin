@@ -65,7 +65,6 @@ public final class Apk extends AbstractDescribableImpl<Apk> {
             return ""; // unused
         }
 
-
         @SuppressWarnings("unused")
         public ListBoxModel doFillKeyStoreItems(@AncestorInPath ItemGroup<?> parent) {
             if (parent == null) {
@@ -96,7 +95,7 @@ public final class Apk extends AbstractDescribableImpl<Apk> {
                 return FormValidation.ok();
             }
             else {
-                return FormValidation.warning(Messages.noworkspace());
+                return FormValidation.warning(Messages.validation_noWorkspace());
             }
         }
     }
