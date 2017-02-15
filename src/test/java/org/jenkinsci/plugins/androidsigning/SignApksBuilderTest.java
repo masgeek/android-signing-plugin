@@ -13,6 +13,7 @@ import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
+import org.jenkinsci.remoting.RoleChecker;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -23,9 +24,20 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.PretendSlave;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.net.URL;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
+import java.nio.file.OpenOption;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.security.KeyStoreException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -46,9 +58,11 @@ import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.remoting.VirtualChannel;
 import hudson.security.ACL;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.tasks.BuildWrapperDescriptor;
+import jenkins.MasterToSlaveFileCallable;
 import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildWrapper;
 import jenkins.util.VirtualFile;
@@ -95,6 +109,30 @@ public class SignApksBuilderTest {
 
     }
 
+    private static class CopyFileCallable extends MasterToSlaveFileCallable<Void> {
+
+        private static final long serialVersionUID = 1L;
+
+        private final String destPath;
+
+        private CopyFileCallable(String destPath) {
+            this.destPath = destPath;
+        }
+
+        @Override
+        public Void invoke(File f, VirtualChannel channel) throws IOException, InterruptedException {
+            long fileSize = f.length();
+            FileChannel inChannel = FileChannel.open(f.toPath(), StandardOpenOption.READ);
+            FileChannel outChannel = FileChannel.open(new File(destPath).toPath(),
+                StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE, StandardOpenOption.SYNC);
+            inChannel.transferTo(0, fileSize, outChannel);
+            outChannel.close();
+            inChannel.close();
+            System.out.printf("%s copied %s to %s", getClass().getSimpleName(), f.getAbsolutePath(), destPath);
+            return null;
+        }
+    }
+
     private static class FakeZipalign implements FakeLauncher {
 
         private Launcher.ProcStarter lastProc;
@@ -102,6 +140,7 @@ public class SignApksBuilderTest {
         @Override
         public Proc onLaunch(Launcher.ProcStarter p) throws IOException {
             lastProc = p;
+            PrintStream logger = new PrintStream(p.stdout());
             List<String> cmd = p.cmds();
             String inPath = cmd.get(cmd.size() - 2);
             String outPath = cmd.get(cmd.size() - 1);
@@ -109,10 +148,25 @@ public class SignApksBuilderTest {
             FilePath in = workspace.child(inPath);
             FilePath out = workspace.child(outPath);
             try {
+                out.getParent().mkdirs();
                 if (!out.getParent().isDirectory()) {
                     throw new IOException("destination directory does not exist: " + out.getParent());
                 }
-                in.copyTo(out);
+                logger.printf("FakeZipalign copy %s to %s in pwd %s%n", in.getRemote(), out.getRemote(), workspace);
+                System.setProperty("sun.io.serialization.extendedDebugInfo", "true");
+                in.act(new CopyFileCallable(out.getRemote()));
+                // TODO: this was resulting in incomplete copies and failing tests, for some reason
+                // sometimes the output file would not have been completely written and reading the
+                // aligned apk was failing
+                // in.copyTo(out);
+                logger.printf("FakeZipalign copy complete%n");
+                if (!out.exists()) {
+                    throw new IOException("FakeZipalign copy output does not exist: " + out.getRemote());
+                }
+                long outSize = out.length(), inSize = in.length();
+                if (outSize != inSize) {
+                    throw new IOException("FakeZipalign copy output size " + outSize + " is different from input size " + inSize);
+                }
                 return new FakeLauncher.FinishedProc(0);
             }
             catch (InterruptedException e) {
