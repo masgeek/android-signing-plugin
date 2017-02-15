@@ -37,7 +37,7 @@ class ZipalignTool {
         }
         androidHome = env.expand(androidHome);
 
-        logger.printf("[SignApksBuilder] searching environment variable %s=%s for zipalign...", ENV_ANDROID_HOME, androidHome);
+        logger.printf("[SignApksBuilder] searching environment variable %s=%s for zipalign...%n", ENV_ANDROID_HOME, androidHome);
 
         return findInAndroidHome(androidHome, workspace, logger);
     }
@@ -124,11 +124,11 @@ class ZipalignTool {
     ArgumentListBuilder commandFor(String unsignedApk, String outputApk) throws AbortException {
         if (zipalign == null) {
             if (!StringUtils.isEmpty(overrideZipalignPath)) {
-                logger.printf("[SignApksBuilder] zipalign path explicitly set to %s", overrideZipalignPath);
+                logger.printf("[SignApksBuilder] zipalign path explicitly set to %s%n", overrideZipalignPath);
                 zipalign = workspace.child(env.expand(overrideZipalignPath));
             }
             else if (!StringUtils.isEmpty(overrideAndroidHome)) {
-                logger.printf("[SignApksBuilder] zipalign %s explicitly set to %s", ENV_ANDROID_HOME, overrideAndroidHome);
+                logger.printf("[SignApksBuilder] zipalign %s explicitly set to %s%n", ENV_ANDROID_HOME, overrideAndroidHome);
                 String expandedAndroidHome = env.expand(overrideAndroidHome);
                 zipalign = findInAndroidHome(expandedAndroidHome, workspace, this.logger);
             }

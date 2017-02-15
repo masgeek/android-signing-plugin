@@ -180,7 +180,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                     archiveDir.deleteContents();
 
                     ArgumentListBuilder zipalignCommand = zipalign.commandFor(unsignedPathName, alignedRelPathName);
-                    listener.getLogger().printf("[SignApksBuilder] %s", zipalignCommand);
+                    listener.getLogger().printf("[SignApksBuilder] %s%n", zipalignCommand);
                     int zipalignResult = launcher.launch()
                         .cmds(zipalignCommand)
                         .pwd(workspace)
