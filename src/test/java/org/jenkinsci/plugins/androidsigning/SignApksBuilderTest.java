@@ -268,7 +268,8 @@ public class SignApksBuilderTest {
     @Test
     public void archivesTheSignedApk() throws Exception {
         List<Apk> entries = new ArrayList<>();
-        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", false, true));
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk")
+            .archiveSignedApks(true).archiveUnsignedApk(false));
         SignApksBuilder builder = new SignApksBuilder(entries);
         FreeStyleProject job = createSignApkJob();
         job.getBuildersList().add(builder);
@@ -283,7 +284,8 @@ public class SignApksBuilderTest {
     @Test
     public void archivesTheUnsignedApk() throws Exception {
         List<Apk> entries = new ArrayList<>();
-        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", true, false));
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk")
+            .archiveSignedApks(false).archiveUnsignedApk(true));
         SignApksBuilder builder = new SignApksBuilder(entries);
         FreeStyleProject job = createSignApkJob();
         job.getBuildersList().add(builder);
@@ -298,7 +300,8 @@ public class SignApksBuilderTest {
     @Test
     public void archivesTheUnsignedAndSignedApks() throws Exception {
         List<Apk> entries = new ArrayList<>();
-        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", true, true));
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk")
+            .archiveSignedApks(true).archiveUnsignedApk(true));
         SignApksBuilder builder = new SignApksBuilder(entries);
         FreeStyleProject job = createSignApkJob();
         job.getBuildersList().add(builder);
@@ -315,7 +318,8 @@ public class SignApksBuilderTest {
     @Test
     public void archivesNothing() throws Exception {
         List<Apk> entries = new ArrayList<>();
-        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", false, false));
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk")
+            .archiveSignedApks(false).archiveUnsignedApk(false));
         SignApksBuilder builder = new SignApksBuilder(entries);
         FreeStyleProject job = createSignApkJob();
         job.getBuildersList().add(builder);
@@ -328,7 +332,8 @@ public class SignApksBuilderTest {
     @Test
     public void signsTheApk() throws Exception {
         List<Apk> entries = new ArrayList<>();
-        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", false, true));
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk")
+            .archiveSignedApks(true).archiveUnsignedApk(false));
         SignApksBuilder builder = new SignApksBuilder(entries);
         FreeStyleProject job = createSignApkJob();
         job.getBuildersList().add(builder);
@@ -342,7 +347,8 @@ public class SignApksBuilderTest {
     @Test
     public void supportsApksWithoutUnsignedSuffix() throws Exception {
         List<Apk> entries = new ArrayList<>();
-        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "SignApksBuilderTest.apk", true, true));
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "SignApksBuilderTest.apk")
+            .archiveSignedApks(true).archiveUnsignedApk(true));
         SignApksBuilder builder = new SignApksBuilder(entries);
         FreeStyleProject job = createSignApkJob();
         job.getBuildersList().add(builder);
@@ -360,7 +366,8 @@ public class SignApksBuilderTest {
     @Test
     public void signsAllMatchingApks() throws Exception {
         List<Apk> entries = new ArrayList<>();
-        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "SignApksBuilderTest-*.apk", true, true));
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "SignApksBuilderTest-*.apk")
+            .archiveSignedApks(true).archiveUnsignedApk(true));
         SignApksBuilder builder = new SignApksBuilder(entries);
         FreeStyleProject job = createSignApkJob();
         job.getBuildersList().add(builder);
@@ -391,7 +398,8 @@ public class SignApksBuilderTest {
     @Test
     public void signsMultipleApksThatWillHaveConflictingSignedFileNames() throws Exception {
         List<Apk> entries = new ArrayList<>();
-        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "SignApksBuilderTest.apk, SignApksBuilderTest-unsigned.apk", true, true));
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "SignApksBuilderTest.apk, SignApksBuilderTest-unsigned.apk")
+            .archiveSignedApks(true).archiveUnsignedApk(true));
         SignApksBuilder builder = new SignApksBuilder(entries);
         FreeStyleProject job = createSignApkJob();
         job.getBuildersList().add(builder);
@@ -425,9 +433,15 @@ public class SignApksBuilderTest {
     }
 
     @Test
+    public void supportsMultipleApkGlobs() throws Exception {
+
+    }
+
+    @Test
     public void usesAndroidHomeOverride() throws Exception {
         List<Apk> entries = new ArrayList<>();
-        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", false, true));
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk")
+            .archiveSignedApks(true).archiveUnsignedApk(false));
         SignApksBuilder builder = new SignApksBuilder(entries);
         FilePath androidHomeOverride = testJenkins.jenkins.getRootPath().createTempDir("android-home-override", null);
         androidHome.copyRecursiveTo(androidHomeOverride);
@@ -442,7 +456,8 @@ public class SignApksBuilderTest {
     @Test
     public void usesZipalignPathOverride() throws Exception {
         List<Apk> entries = new ArrayList<>();
-        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk", false, true));
+        entries.add(new Apk(KEY_STORE_ID, getClass().getSimpleName(), "*-unsigned.apk")
+            .archiveSignedApks(true).archiveUnsignedApk(false));
         SignApksBuilder builder = new SignApksBuilder(entries);
         FilePath zipalignOverride = testJenkins.jenkins.getRootPath().createTempDir("zipalign-override", null);
         zipalignOverride = zipalignOverride.createTextTempFile("zipalign-override", ".sh", "echo \"zipalign $@\"");
@@ -455,13 +470,9 @@ public class SignApksBuilderTest {
     }
 
     @Test
-    public void supportsMultipleApkGlobs() throws Exception {
-
-    }
-
-    @Test
     public void identitySubmission() throws Exception {
-        Apk entry = new Apk(KEY_STORE_ID, getClass().getSimpleName(), "**/*-unsigned.apk", false, true);
+        Apk entry = new Apk(KEY_STORE_ID, getClass().getSimpleName(), "**/*-unsigned.apk")
+            .archiveSignedApks(true).archiveUnsignedApk(false);
         SignApksBuilder original = new SignApksBuilder(Arrays.asList(entry));
         FreeStyleProject job = testJenkins.createFreeStyleProject();
         job.getBuildersList().add(original);

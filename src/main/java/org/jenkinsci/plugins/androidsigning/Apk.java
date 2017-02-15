@@ -16,19 +16,22 @@ import jenkins.model.Jenkins;
 
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.annotation.Nonnull;
+
 
 public final class Apk extends AbstractDescribableImpl<Apk> {
     private String keyStore;
     private String alias;
     private String apksToSign;
-    private boolean archiveUnsignedApks = false;
     private boolean archiveSignedApks = true;
+    private boolean archiveUnsignedApks = false;
 
     // renamed fields
     transient private String selection;
@@ -38,16 +41,32 @@ public final class Apk extends AbstractDescribableImpl<Apk> {
      * @param keyStore an ID of a {@link com.cloudbees.plugins.credentials.common.StandardCertificateCredentials}
      * @param alias the alias of the signing key in the key store
      * @param apksToSign an Ant-style glob pattern; multiple globs separated by commas are allowed
-     * @param archiveUnsignedApks true to archive the unsigned APK after the build
-     * @param archiveSignedApks true to archive the signed APK after the build
      */
     @DataBoundConstructor
-    public Apk(String keyStore, String alias, String apksToSign, boolean archiveUnsignedApks, boolean archiveSignedApks) {
+    public Apk(String keyStore, String alias, String apksToSign) {
         this.keyStore = keyStore;
         this.alias = alias;
         this.apksToSign = apksToSign;
-        this.archiveUnsignedApks = archiveUnsignedApks;
-        this.archiveSignedApks = archiveSignedApks;
+    }
+
+    @DataBoundSetter
+    public void setArchiveSignedApks(boolean x) {
+        archiveSignedApks = x;
+    }
+
+    @DataBoundSetter
+    public void setArchiveUnsignedApks(boolean x) {
+        archiveUnsignedApks = x;
+    }
+
+    public Apk archiveSignedApks(boolean x) {
+        setArchiveSignedApks(x);
+        return this;
+    }
+
+    public Apk archiveUnsignedApk(boolean x) {
+        setArchiveUnsignedApks(x);
+        return this;
     }
 
     @SuppressWarnings("unused")
@@ -60,9 +79,9 @@ public final class Apk extends AbstractDescribableImpl<Apk> {
 
     @Extension
     public static class DescriptorImpl extends Descriptor<Apk> {
-        @Override
+        @Override @Nonnull
         public String getDisplayName() {
-            return ""; // unused
+            return "APK Signing Entry";
         }
 
         @SuppressWarnings("unused")
@@ -86,6 +105,9 @@ public final class Apk extends AbstractDescribableImpl<Apk> {
 
         @SuppressWarnings("unused")
         public FormValidation doCheckApksToSign(@AncestorInPath AbstractProject project, @QueryParameter String value) throws IOException, InterruptedException {
+            if (project == null) {
+                return FormValidation.warning(Messages.validation_noProject());
+            }
             FilePath someWorkspace = project.getSomeWorkspace();
             if (someWorkspace != null) {
                 String msg = someWorkspace.validateAntFileMask(value, FilePath.VALIDATE_ANT_FILE_MASK_BOUND);
