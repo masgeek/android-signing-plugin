@@ -1,6 +1,5 @@
 package org.jenkinsci.plugins.androidsigning.compatibility;
 
-import org.jenkinsci.plugins.androidsigning.Apk;
 import org.jenkinsci.plugins.androidsigning.SignApksBuilder;
 import org.junit.Rule;
 import org.junit.Test;
