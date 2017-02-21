@@ -1,31 +1,19 @@
 package org.jenkinsci.plugins.androidsigning;
 
-import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
-
-import hudson.Extension;
-import hudson.FilePath;
-import hudson.model.AbstractDescribableImpl;
-import hudson.model.AbstractProject;
-import hudson.model.Descriptor;
-import hudson.model.ItemGroup;
-import hudson.security.ACL;
-import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
-import jenkins.model.Jenkins;
-
-import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.QueryParameter;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nonnull;
 
+import hudson.Extension;
+import hudson.model.AbstractDescribableImpl;
+import hudson.model.Descriptor;
 
+
+@Deprecated
 public final class Apk extends AbstractDescribableImpl<Apk> {
     private String keyStore;
     private String alias;
@@ -34,6 +22,7 @@ public final class Apk extends AbstractDescribableImpl<Apk> {
     private boolean archiveUnsignedApks = false;
 
     // renamed fields
+    @SuppressWarnings("unused")
     transient private String selection;
 
     /**
@@ -84,42 +73,42 @@ public final class Apk extends AbstractDescribableImpl<Apk> {
             return "APK Signing Entry";
         }
 
-        @SuppressWarnings("unused")
-        public ListBoxModel doFillKeyStoreItems(@AncestorInPath ItemGroup<?> parent) {
-            if (parent == null) {
-                parent = Jenkins.getInstance();
-            }
-            ListBoxModel items = new ListBoxModel();
-            List<StandardCertificateCredentials> keys = CredentialsProvider.lookupCredentials(
-                StandardCertificateCredentials.class, parent, ACL.SYSTEM, SignApksBuilder.NO_REQUIREMENTS);
-            for (StandardCertificateCredentials key : keys) {
-                items.add(key.getDescription(), key.getId());
-            }
-            return items;
-        }
-
-        @SuppressWarnings("unused")
-        public FormValidation doCheckAlias(@AncestorInPath AbstractProject project, @QueryParameter String value) throws IOException {
-            return FormValidation.validateRequired(value);
-        }
-
-        @SuppressWarnings("unused")
-        public FormValidation doCheckApksToSign(@AncestorInPath AbstractProject project, @QueryParameter String value) throws IOException, InterruptedException {
-            if (project == null) {
-                return FormValidation.warning(Messages.validation_noProject());
-            }
-            FilePath someWorkspace = project.getSomeWorkspace();
-            if (someWorkspace != null) {
-                String msg = someWorkspace.validateAntFileMask(value, FilePath.VALIDATE_ANT_FILE_MASK_BOUND);
-                if (msg != null) {
-                    return FormValidation.error(msg);
-                }
-                return FormValidation.ok();
-            }
-            else {
-                return FormValidation.warning(Messages.validation_noWorkspace());
-            }
-        }
+//        @SuppressWarnings("unused")
+//        public ListBoxModel doFillKeyStoreItems(@AncestorInPath ItemGroup<?> parent) {
+//            if (parent == null) {
+//                parent = Jenkins.getInstance();
+//            }
+//            ListBoxModel items = new ListBoxModel();
+//            List<StandardCertificateCredentials> keys = CredentialsProvider.lookupCredentials(
+//                StandardCertificateCredentials.class, parent, ACL.SYSTEM, SignApksBuilder.NO_REQUIREMENTS);
+//            for (StandardCertificateCredentials key : keys) {
+//                items.add(key.getDescription(), key.getId());
+//            }
+//            return items;
+//        }
+//
+//        @SuppressWarnings("unused")
+//        public FormValidation doCheckAlias(@AncestorInPath AbstractProject project, @QueryParameter String value) throws IOException {
+//            return FormValidation.validateRequired(value);
+//        }
+//
+//        @SuppressWarnings("unused")
+//        public FormValidation doCheckApksToSign(@AncestorInPath AbstractProject project, @QueryParameter String value) throws IOException, InterruptedException {
+//            if (project == null) {
+//                return FormValidation.warning(Messages.validation_noProject());
+//            }
+//            FilePath someWorkspace = project.getSomeWorkspace();
+//            if (someWorkspace != null) {
+//                String msg = someWorkspace.validateAntFileMask(value, FilePath.VALIDATE_ANT_FILE_MASK_BOUND);
+//                if (msg != null) {
+//                    return FormValidation.error(msg);
+//                }
+//                return FormValidation.ok();
+//            }
+//            else {
+//                return FormValidation.warning(Messages.validation_noWorkspace());
+//            }
+//        }
     }
 
     public String getApksToSign() {
@@ -142,15 +131,4 @@ public final class Apk extends AbstractDescribableImpl<Apk> {
         return archiveSignedApks;
     }
 
-    public String[] getSelectionGlobs() {
-        String[] globs = getApksToSign().split("\\s*,\\s*");
-        List<String> cleanGlobs = new ArrayList<>(globs.length);
-        for (String glob : globs) {
-            glob = glob.trim();
-            if (glob.length() > 0) {
-                cleanGlobs.add(glob);
-            }
-        }
-        return cleanGlobs.toArray(new String[cleanGlobs.size()]);
-    }
 }

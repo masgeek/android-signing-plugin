@@ -10,29 +10,22 @@
     </f:entry>
   </f:advanced>
 
-  <f:entry title="${%field.entries}">
-    <f:repeatable field="entries" items="${instance.entries}" minimum="${1}" add="${%button.addEntry}">
-      <table width="100%">
-        <f:entry field="keyStore" title="${%field.keyStore}">
-          <f:select/>
-        </f:entry>
-        <f:entry field="alias" title="${%field.alias}">
-          <f:textbox/>
-        </f:entry>
-        <f:entry field="apksToSign" title="${%field.apksToSign}">
-          <f:textbox/>
-        </f:entry>
-        <f:entry field="archiveSignedApks" title="${%field.archiveSignedApks}">
-          <f:checkbox default="true"/>
-        </f:entry>
-        <f:entry field="archiveUnsignedApks" title="${%field.archiveUnsignedApks}">
-          <f:checkbox/>
-        </f:entry>
-        <f:entry>
-          <f:repeatableDeleteButton />
-        </f:entry>
-      </table>
-    </f:repeatable>
+  <!--<table width="100%">-->
+  <f:entry field="keyStoreId" title="${%field.keyStoreId}">
+    <f:select/>
   </f:entry>
+  <f:entry field="keyAlias" title="${%field.keyAlias}">
+    <f:textbox/>
+  </f:entry>
+  <f:entry field="apksToSign" title="${%field.apksToSign}">
+    <f:textbox/>
+  </f:entry>
+  <f:entry field="archiveSignedApks" title="${%field.archiveSignedApks}">
+    <f:checkbox default="true"/>
+  </f:entry>
+  <f:entry field="archiveUnsignedApks" title="${%field.archiveUnsignedApks}">
+    <f:checkbox/>
+  </f:entry>
+  <!--</table>-->
 
 </j:jelly>

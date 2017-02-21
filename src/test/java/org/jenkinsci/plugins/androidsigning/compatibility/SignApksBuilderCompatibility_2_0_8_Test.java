@@ -11,6 +11,8 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 
 import hudson.model.FreeStyleProject;
+import hudson.tasks.Builder;
+import hudson.util.DescribableList;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
@@ -24,33 +26,33 @@ public class SignApksBuilderCompatibility_2_0_8_Test {
 
     @Test
     @LocalData
-    public void compatibleWith_2_0_8() throws URISyntaxException, IOException {
+    public void converts_v2_0_8_entriesToBuilders() throws URISyntaxException, IOException {
 
         FreeStyleProject job = (FreeStyleProject) testJenkins.jenkins.getItem(getClass().getSimpleName());
-        SignApksBuilder builder = (SignApksBuilder) job.getBuilders().get(0);
+        DescribableList<Builder,?> builders = job.getBuildersList();
 
-        assertThat(builder.getEntries().size(), equalTo(3));
+        assertThat(builders.size(), equalTo(3));
 
-        Apk entry = builder.getEntries().get(0);
-        assertThat(entry.getKeyStore(), equalTo("android-signing-1"));
-        assertThat(entry.getAlias(), equalTo("key1"));
-        assertThat(entry.getApksToSign(), equalTo("build/outputs/apk/*-unsigned.apk"));
-        assertThat(entry.getArchiveUnsignedApks(), is(true));
-        assertThat(entry.getArchiveSignedApks(), is(true));
+        SignApksBuilder builder = (SignApksBuilder) builders.get(0);
+        assertThat(builder.getKeyStoreId(), equalTo("android-signing-1"));
+        assertThat(builder.getKeyAlias(), equalTo("key1"));
+        assertThat(builder.getApksToSign(), equalTo("build/outputs/apk/*-unsigned.apk"));
+        assertThat(builder.getArchiveUnsignedApks(), is(true));
+        assertThat(builder.getArchiveSignedApks(), is(true));
 
-        entry = builder.getEntries().get(1);
-        assertThat(entry.getKeyStore(), equalTo("android-signing-1"));
-        assertThat(entry.getAlias(), equalTo("key2"));
-        assertThat(entry.getApksToSign(), equalTo("SignApksBuilderTest.apk, SignApksBuilderTest-choc*.apk"));
-        assertThat(entry.getArchiveUnsignedApks(), is(false));
-        assertThat(entry.getArchiveSignedApks(), is(true));
+        builder = (SignApksBuilder) builders.get(1);
+        assertThat(builder.getKeyStoreId(), equalTo("android-signing-1"));
+        assertThat(builder.getKeyAlias(), equalTo("key2"));
+        assertThat(builder.getApksToSign(), equalTo("SignApksBuilderTest.apk, SignApksBuilderTest-choc*.apk"));
+        assertThat(builder.getArchiveUnsignedApks(), is(false));
+        assertThat(builder.getArchiveSignedApks(), is(true));
 
-        entry = builder.getEntries().get(2);
-        assertThat(entry.getKeyStore(), equalTo("android-signing-2"));
-        assertThat(entry.getAlias(), equalTo("key1"));
-        assertThat(entry.getApksToSign(), equalTo("**/*.apk"));
-        assertThat(entry.getArchiveUnsignedApks(), is(false));
-        assertThat(entry.getArchiveSignedApks(), is(false));
+        builder = (SignApksBuilder) builders.get(2);
+        assertThat(builder.getKeyStoreId(), equalTo("android-signing-2"));
+        assertThat(builder.getKeyAlias(), equalTo("key1"));
+        assertThat(builder.getApksToSign(), equalTo("**/*.apk"));
+        assertThat(builder.getArchiveUnsignedApks(), is(false));
+        assertThat(builder.getArchiveSignedApks(), is(false));
     }
 
 }

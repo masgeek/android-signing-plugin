@@ -18,10 +18,12 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.Symbol;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,6 +35,7 @@ import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,6 +53,7 @@ import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.Item;
+import hudson.model.ItemGroup;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
@@ -58,35 +62,90 @@ import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.ArgumentListBuilder;
+import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
 import jenkins.MasterToSlaveFileCallable;
+import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 import jenkins.util.BuildListenerAdapter;
 
 public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
     static final List<DomainRequirement> NO_REQUIREMENTS = Collections.emptyList();
+    static final String BUILDER_BASE_DIR_PREFIX = SignApksBuilder.class.getSimpleName() + "-out-";
 
-    private List<Apk> entries = Collections.emptyList();
-    private String androidHome;
-    private String zipalignPath;
-
-    @DataBoundConstructor
-    public SignApksBuilder(List<Apk> entries) {
-        this.entries = entries;
-        if (this.entries == null) {
-            this.entries = Collections.emptyList();
+    static List<SignApksBuilder> singleEntryBuildersFromEntriesOfBuilder(SignApksBuilder oldBuilder) {
+        List<SignApksBuilder> signers = new ArrayList<>(oldBuilder.getEntries().size());
+        for (Apk apk : oldBuilder.getEntries()) {
+            SignApksBuilder b = new SignApksBuilder();
+            b.setPropertiesFromOldSigningEntry(apk);
+            b.setAndroidHome(oldBuilder.getAndroidHome());
+            b.setZipalignPath(oldBuilder.getZipalignPath());
+            signers.add(b);
         }
+        return signers;
     }
 
+    private String androidHome;
+    private String zipalignPath;
+    private String keyStoreId;
+    private String keyAlias;
+    private String apksToSign;
+    private boolean archiveSignedApks = true;
+    private boolean archiveUnsignedApks = false;
+
+    transient private List<Apk> entries;
+
+    @Deprecated
+    public SignApksBuilder(List<Apk> entries) {
+        if (entries.size() != 1) {
+            throw new UnsupportedOperationException("this constructor is deprecated; use multiple build steps instead of multiple signing entries");
+        }
+        setPropertiesFromOldSigningEntry(entries.get(0));
+    }
+
+    @DataBoundConstructor
+    public SignApksBuilder() {
+    }
+
+    private void setPropertiesFromOldSigningEntry(Apk entry) {
+        setKeyStoreId(entry.getKeyStore());
+        setKeyAlias(entry.getAlias());
+        setApksToSign(entry.getApksToSign());
+        setArchiveSignedApks(entry.getArchiveSignedApks());
+        setArchiveUnsignedApks(entry.getArchiveUnsignedApks());
+    }
+    
     private boolean isIntermediateFailure(Run build) {
         // TODO: does this work in pipeline?
         Result result = build.getResult();
         return result != null && result.isWorseThan(Result.UNSTABLE);
     }
 
+    private String[] getSelectionGlobs() {
+        String[] globs = getApksToSign().split("\\s*,\\s*");
+        List<String> cleanGlobs = new ArrayList<>(globs.length);
+        for (String glob : globs) {
+            glob = glob.trim();
+            if (glob.length() > 0) {
+                cleanGlobs.add(glob);
+            }
+        }
+        return cleanGlobs.toArray(new String[cleanGlobs.size()]);
+    }
+
+    boolean isMigrated() {
+        return entries == null;
+    }
+
+    @Deprecated
+    public List<Apk> getEntries() {
+        return entries;
+    }
+
     @DataBoundSetter
     public void setAndroidHome(String x) {
-        androidHome = x;
+        androidHome = StringUtils.stripToNull(x);
     }
 
     public String getAndroidHome() {
@@ -95,21 +154,70 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
     @DataBoundSetter
     public void setZipalignPath(String x) {
-        zipalignPath = x;
+        zipalignPath = StringUtils.stripToNull(x);
     }
 
     public String getZipalignPath() {
         return zipalignPath;
     }
 
-    public List<Apk> getEntries() {
-        return entries;
+    @DataBoundSetter
+    public void setKeyStoreId(String x) {
+        keyStoreId = x;
+    }
+
+    public String getKeyStoreId() {
+        return keyStoreId;
+    }
+
+    @DataBoundSetter
+    public void setKeyAlias(String x) {
+        keyAlias = x;
+    }
+
+    public String getKeyAlias() {
+        return keyAlias;
+    }
+
+    @DataBoundSetter
+    public void setApksToSign(String x) {
+        apksToSign = x;
+    }
+
+    public String getApksToSign() {
+        return apksToSign;
+    }
+
+    @DataBoundSetter
+    public void setArchiveSignedApks(boolean x) {
+        archiveSignedApks = x;
+    }
+
+    public boolean getArchiveSignedApks() {
+        return archiveSignedApks;
+    }
+
+    @DataBoundSetter
+    public void setArchiveUnsignedApks(boolean x) {
+        archiveUnsignedApks = x;
+    }
+
+    public boolean getArchiveUnsignedApks() {
+        return archiveUnsignedApks;
     }
 
     @Override
     public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath workspace, @Nonnull Launcher launcher, @Nonnull TaskListener listener) throws InterruptedException, IOException {
         if (isIntermediateFailure(run)) {
             listener.getLogger().println("[SignApksBuilder] skipping Sign APKs step because a previous step failed");
+            return;
+        }
+
+        if (getEntries() != null && !getEntries().isEmpty()) {
+            List<SignApksBuilder> newModelBuilders = singleEntryBuildersFromEntriesOfBuilder(this);
+            for (SignApksBuilder builder : newModelBuilders) {
+                builder.perform(run, workspace, launcher, listener);
+            }
             return;
         }
 
@@ -122,100 +230,103 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             env = new EnvVars();
         }
 
+        FilePath builderDir = workspace.createTempDir(BUILDER_BASE_DIR_PREFIX, "");
+        String excludeBuilderDir = builderDir.getName() + "/**";
         ZipalignTool zipalign = new ZipalignTool(env, workspace, listener.getLogger(), androidHome, zipalignPath);
         Map<String,String> apksToArchive = new LinkedHashMap<>();
-        int apkCounter = 1;
-        for (Apk entry : entries) {
-            StandardCertificateCredentials keyStoreCredential = getKeystore(entry.getKeyStore(), run.getParent());
-            char[] storePassword = keyStoreCredential.getPassword().getPlainText().toCharArray();
-            // TODO: add key password support
-            char[] keyPassword = storePassword;
-            KeyStore keyStore = keyStoreCredential.getKeyStore();
-            PrivateKey key;
-            Certificate[] certChain;
-            try {
-                if (entry.getAlias() == null) {
-                    // TODO: search all entries to find key, throw error if multiple keys
-                }
-                key = (PrivateKey)keyStore.getKey(entry.getAlias(), keyPassword);
-                certChain = keyStore.getCertificateChain(entry.getAlias());
+
+        StandardCertificateCredentials keyStoreCredential = getKeystore(getKeyStoreId(), run.getParent());
+        char[] storePassword = keyStoreCredential.getPassword().getPlainText().toCharArray();
+        // TODO: add key password support
+        char[] keyPassword = storePassword;
+        KeyStore keyStore = keyStoreCredential.getKeyStore();
+        String alias = getKeyAlias();
+        PrivateKey key;
+        Certificate[] certChain;
+        try {
+            if (getKeyAlias() == null) {
+                // TODO: search all entries to find key, throw error if multiple keys
             }
-            catch (GeneralSecurityException e) {
-                PrintWriter details = listener.fatalError("Error reading keystore " + entry.getKeyStore());
-                e.printStackTrace(details);
-                throw new AbortException("Error reading keystore " + entry.getKeyStore());
+            key = (PrivateKey)keyStore.getKey(alias, keyPassword);
+            certChain = keyStore.getCertificateChain(alias);
+        }
+        catch (GeneralSecurityException e) {
+            PrintWriter details = listener.fatalError("Error reading keystore " + getKeyStoreId());
+            e.printStackTrace(details);
+            throw new AbortException("Error reading keystore " + getKeyStoreId());
+        }
+
+        if (key == null || certChain == null) {
+            throw new AbortException("Alias " + alias +
+                " does not exist or does not point to a key and certificate in certificate credentials " + getKeyStoreId());
+        }
+
+        String v1SigName = alias;
+        if (v1SigName == null) {
+            v1SigName = keyStoreCredential.getId();
+        }
+
+        int apkCounter = 0;
+        String safeKeyStoreId = getKeyStoreId().replaceAll("[^\\w.-]+[^$]", "_");
+        List<FilePath> matchedApks = new ArrayList<>();
+        String[] globs = getSelectionGlobs();
+        for (String glob : globs) {
+            FilePath[] globMatch = workspace.list(glob, excludeBuilderDir);
+            if (globMatch.length == 0) {
+                throw new AbortException("No APKs in workspace matching " + glob);
+            }
+            matchedApks.addAll(Arrays.asList(globMatch));
+        }
+
+        for (FilePath apkPath : matchedApks) {
+            apkPath = apkPath.absolutize();
+            String archiveDirName = builderDir.getName() + "/" + safeKeyStoreId + "/" + (++apkCounter) + "/";
+            String unsignedPathName = apkPath.getRemote();
+            Pattern stripUnsignedPattern = Pattern.compile("(-?unsigned)?.apk$", Pattern.CASE_INSENSITIVE);
+            Matcher stripUnsigned = stripUnsignedPattern.matcher(apkPath.getName());
+            String strippedApkPathName = stripUnsigned.replaceFirst("");
+            String alignedRelPathName = archiveDirName + strippedApkPathName + "-aligned.apk";
+            String signedRelPathName = archiveDirName + strippedApkPathName + "-signed.apk";
+
+            FilePath archiveDir = workspace.child(archiveDirName);
+            archiveDir.mkdirs();
+            archiveDir.deleteContents();
+
+            ArgumentListBuilder zipalignCommand = zipalign.commandFor(unsignedPathName, alignedRelPathName);
+            listener.getLogger().printf("[SignApksBuilder] %s%n", zipalignCommand);
+            int zipalignResult = launcher.launch()
+                .cmds(zipalignCommand)
+                .pwd(workspace)
+                .stdout(listener)
+                .stderr(listener.getLogger())
+                .join();
+
+            if (zipalignResult != 0) {
+                listener.fatalError("[SignApksBuilder] zipalign failed: exit code %d", zipalignResult);
+                throw new AbortException(String.format("zipalign failed on APK %s: exit code %d", unsignedPathName, zipalignResult));
             }
 
-            if (key == null || certChain == null) {
-                throw new AbortException("Alias " + entry.getAlias() +
-                    " does not exist or does not point to a key and certificate in certificate credentials " + entry.getKeyStore());
+            FilePath alignedPath = workspace.child(alignedRelPathName);
+            if (!alignedPath.exists()) {
+                throw new AbortException(String.format("aligned APK does not exist: %s", alignedRelPathName));
             }
 
-            String v1SigName = entry.getAlias();
-            if (v1SigName == null) {
-                v1SigName = keyStoreCredential.getId();
+            listener.getLogger().printf("[SignApksBuilder] signing APK %s%n", alignedRelPathName);
+
+            FilePath signedPath = workspace.child(signedRelPathName);
+            final SignApkCallable signApk = new SignApkCallable(key, certChain, v1SigName, signedPath.getRemote(), listener);
+            alignedPath.act(signApk);
+
+            listener.getLogger().printf("[SignApksBuilder] signed APK %s%n", signedRelPathName);
+
+            if (getArchiveUnsignedApks()) {
+                listener.getLogger().printf("[SignApksBuilder] archiving unsigned APK %s%n", unsignedPathName);
+                String rel = relativeToWorkspace(workspace, apkPath);
+                apksToArchive.put(archiveDirName + apkPath.getName(), rel);
             }
-
-            String safeKeyStoreId = entry.getKeyStore().replaceAll("[^\\w.-]+[^$]", "_");
-            String[] globs = entry.getSelectionGlobs();
-            for (String glob : globs) {
-                FilePath[] matchedApks = workspace.list(glob);
-                if (ArrayUtils.isEmpty(matchedApks)) {
-                    throw new AbortException("No APKs in workspace matching " + glob);
-                }
-                for (FilePath apkPath : matchedApks) {
-                    apkPath = apkPath.absolutize();
-                    String archiveDirName = getClass().getSimpleName() + "/" + safeKeyStoreId + "-" + apkCounter++ + "/";
-
-                    String unsignedPathName = apkPath.getRemote();
-                    // TODO: implicit coupling to the gradle android plugin's naming convention here
-                    Pattern stripUnsignedPattern = Pattern.compile("(-?unsigned)?.apk$", Pattern.CASE_INSENSITIVE);
-                    Matcher stripUnsigned = stripUnsignedPattern.matcher(apkPath.getName());
-                    String strippedApkPathName = stripUnsigned.replaceFirst("");
-                    String alignedRelPathName = archiveDirName + strippedApkPathName + "-aligned.apk";
-                    String signedRelPathName = archiveDirName + strippedApkPathName + "-signed.apk";
-
-                    FilePath archiveDir = workspace.child(archiveDirName);
-                    archiveDir.mkdirs();
-                    archiveDir.deleteContents();
-
-                    ArgumentListBuilder zipalignCommand = zipalign.commandFor(unsignedPathName, alignedRelPathName);
-                    listener.getLogger().printf("[SignApksBuilder] %s%n", zipalignCommand);
-                    int zipalignResult = launcher.launch()
-                        .cmds(zipalignCommand)
-                        .pwd(workspace)
-                        .stdout(listener)
-                        .stderr(listener.getLogger())
-                        .join();
-
-                    if (zipalignResult != 0) {
-                        listener.fatalError("[SignApksBuilder] zipalign failed: exit code %d", zipalignResult);
-                        throw new AbortException(String.format("zipalign failed on APK %s: exit code %d", unsignedPathName, zipalignResult));
-                    }
-
-                    FilePath alignedPath = workspace.child(alignedRelPathName);
-                    if (!alignedPath.exists()) {
-                        throw new AbortException(String.format("aligned APK does not exist: %s", alignedRelPathName));
-                    }
-
-                    listener.getLogger().printf("[SignApksBuilder] signing APK %s%n", alignedRelPathName);
-
-                    FilePath signedPath = workspace.child(signedRelPathName);
-                    final SignApkCallable signApk = new SignApkCallable(key, certChain, v1SigName, signedPath.getRemote(), listener);
-                    alignedPath.act(signApk);
-
-                    listener.getLogger().printf("[SignApksBuilder] signed APK %s%n", signedRelPathName);
-
-                    if (entry.getArchiveUnsignedApks()) {
-                        listener.getLogger().printf("[SignApksBuilder] archiving unsigned APK %s%n", unsignedPathName);
-                        String rel = relativeToWorkspace(workspace, apkPath);
-                        apksToArchive.put(archiveDirName + apkPath.getName(), rel);
-                    }
-                    if (entry.getArchiveSignedApks()) {
-                        listener.getLogger().printf("[SignApksBuilder] archiving signed APK %s%n", signedRelPathName);
-                        apksToArchive.put(signedRelPathName, signedRelPathName);
-                    }
-                }
+            if (getArchiveSignedApks()) {
+                listener.getLogger().printf("[SignApksBuilder] archiving signed APK %s%n", signedRelPathName);
+                apksToArchive.put(signedRelPathName, signedRelPathName);
             }
         }
 
@@ -256,6 +367,43 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         @Override
         public @Nonnull String getDisplayName() {
             return DISPLAY_NAME;
+        }
+
+        @SuppressWarnings("unused")
+        public ListBoxModel doFillKeyStoreItems(@AncestorInPath ItemGroup<?> parent) {
+            if (parent == null) {
+                parent = Jenkins.getInstance();
+            }
+            ListBoxModel items = new ListBoxModel();
+            List<StandardCertificateCredentials> keys = CredentialsProvider.lookupCredentials(
+                StandardCertificateCredentials.class, parent, ACL.SYSTEM, SignApksBuilder.NO_REQUIREMENTS);
+            for (StandardCertificateCredentials key : keys) {
+                items.add(key.getDescription(), key.getId());
+            }
+            return items;
+        }
+
+        @SuppressWarnings("unused")
+        public FormValidation doCheckAlias(@AncestorInPath AbstractProject project, @QueryParameter String value) throws IOException {
+            return FormValidation.validateRequired(value);
+        }
+
+        @SuppressWarnings("unused")
+        public FormValidation doCheckApksToSign(@AncestorInPath AbstractProject project, @QueryParameter String value) throws IOException, InterruptedException {
+            if (project == null) {
+                return FormValidation.warning(Messages.validation_noProject());
+            }
+            FilePath someWorkspace = project.getSomeWorkspace();
+            if (someWorkspace != null) {
+                String msg = someWorkspace.validateAntFileMask(value, FilePath.VALIDATE_ANT_FILE_MASK_BOUND);
+                if (msg != null) {
+                    return FormValidation.error(msg);
+                }
+                return FormValidation.ok();
+            }
+            else {
+                return FormValidation.warning(Messages.validation_noWorkspace());
+            }
         }
 
     }
