@@ -8,7 +8,9 @@ import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.impl.CertificateCredentialsImpl;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
+import com.gargoylesoftware.htmlunit.html.HtmlOption;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.gargoylesoftware.htmlunit.html.HtmlSelect;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -62,10 +64,13 @@ import static org.hamcrest.CoreMatchers.endsWith;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.hasItems;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.isEmptyOrNullString;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -246,6 +251,7 @@ public class SignApksBuilderTest {
     private FilePath sourceWorkspace = null;
     private FilePath androidHome = null;
     private FakeZipalign zipalignLauncer = null;
+    private PretendSlave slave = null;
 
     @Before
     public void addCredentials() {
@@ -285,7 +291,7 @@ public class SignApksBuilderTest {
         sourceWorkspace = new FilePath(new File(workspaceUrl.toURI()));
 
         zipalignLauncer = new FakeZipalign();
-        PretendSlave slave = testJenkins.createPretendSlave(zipalignLauncer);
+        slave = testJenkins.createPretendSlave(zipalignLauncer);
         slave.setLabelString(slave.getLabelString() + " " + getClass().getSimpleName());
     }
 
@@ -628,6 +634,34 @@ public class SignApksBuilderTest {
 
         assertThat(original.getEntries(), nullValue());
         testJenkins.assertEqualBeans(original, submitted, "keyStoreId,keyAlias,apksToSign,archiveUnsignedApks,archiveSignedApks,androidHome,zipalignPath");
+    }
+
+    @Test
+    public void descriptorProvidesKeyStoreFillMethod() throws Exception {
+
+        SignApksBuilder original = new SignApksBuilder();
+        original.setKeyStoreId(KEY_STORE_ID);
+        original.setKeyAlias(getClass().getSimpleName());
+        original.setApksToSign("**/*-unsigned.apk");
+        original.setArchiveSignedApks(!original.getArchiveSignedApks());
+        original.setArchiveUnsignedApks(!original.getArchiveUnsignedApks());
+        original.setAndroidHome(androidHome.getRemote());
+        FreeStyleProject job = testJenkins.createFreeStyleProject();
+        job.getBuildersList().add(original);
+
+        // have to do this because Descriptor.calcFillSettings() fails outside the context of a Stapler web request
+        JenkinsRule.WebClient browser = testJenkins.createWebClient();
+        HtmlPage configPage = browser.getPage(job, "configure");
+        HtmlForm form = configPage.getFormByName("config");
+        HtmlSelect keyStoreSelect = form.getSelectByName("_.keyStoreId");
+        String fillUrl = keyStoreSelect.getAttribute("fillUrl");
+
+        assertThat(fillUrl, not(isEmptyOrNullString()));
+
+        HtmlOption option = keyStoreSelect.getOptionByValue(KEY_STORE_ID);
+
+        assertThat(option, notNullValue());
+        assertThat(option.getValueAttribute(), equalTo(KEY_STORE_ID));
     }
 
     @Test(expected = UnsupportedOperationException.class)

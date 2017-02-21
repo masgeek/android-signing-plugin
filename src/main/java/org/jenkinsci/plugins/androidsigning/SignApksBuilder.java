@@ -370,7 +370,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         }
 
         @SuppressWarnings("unused")
-        public ListBoxModel doFillKeyStoreItems(@AncestorInPath ItemGroup<?> parent) {
+        public ListBoxModel doFillKeyStoreIdItems(@AncestorInPath ItemGroup<?> parent) {
             if (parent == null) {
                 parent = Jenkins.getInstance();
             }
