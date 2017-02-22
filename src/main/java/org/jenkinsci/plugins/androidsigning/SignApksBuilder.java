@@ -37,9 +37,12 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -268,7 +271,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
         int apkCounter = 0;
         String safeKeyStoreId = getKeyStoreId().replaceAll("[^\\w.-]+[^$]", "_");
-        List<FilePath> matchedApks = new ArrayList<>();
+        Set<FilePath> matchedApks = new TreeSet<>(Comparator.comparing(FilePath::getRemote));
         String[] globs = getSelectionGlobs();
         for (String glob : globs) {
             FilePath[] globMatch = workspace.list(glob, excludeBuilderDir);

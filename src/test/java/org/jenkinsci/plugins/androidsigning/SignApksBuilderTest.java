@@ -62,6 +62,7 @@ import jenkins.util.VirtualFile;
 
 import static org.hamcrest.CoreMatchers.endsWith;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.everyItem;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.not;
@@ -494,9 +495,9 @@ public class SignApksBuilderTest {
 
         List<String> relPaths = artifacts.stream().map(artifact -> artifact.relativePath).collect(Collectors.toList());
         assertThat(relPaths, hasItems(
-            endsWith("/" + KEY_STORE_ID + "/1/SignApksBuilderTest.apk"),
             endsWith("/" + KEY_STORE_ID + "/1/SignApksBuilderTest-signed.apk"),
-            endsWith("/" + KEY_STORE_ID + "/2/SignApksBuilderTest-unsigned.apk"),
+            endsWith("/" + KEY_STORE_ID + "/1/SignApksBuilderTest-unsigned.apk"),
+            endsWith("/" + KEY_STORE_ID + "/2/SignApksBuilderTest.apk"),
             endsWith("/" + KEY_STORE_ID + "/2/SignApksBuilderTest-signed.apk")));
 
         FilePath[] workApks = build.getWorkspace().list("SignApksBuilder-out-*/" + KEY_STORE_ID + "/**/*.apk");
@@ -548,6 +549,7 @@ public class SignApksBuilderTest {
         }
 
         FilePath[] workApks = build.getWorkspace().list("SignApksBuilder-out-*/" + KEY_STORE_ID + "/**/*.apk");
+
         assertThat(workApks.length, equalTo(4));
 
         artifacts = artifacts.stream().filter(a -> a.getFileName().endsWith("-signed.apk")).collect(Collectors.toList());
@@ -561,7 +563,38 @@ public class SignApksBuilderTest {
 
     @Test
     public void supportsMultipleApkGlobs() throws Exception {
+        SignApksBuilder builder = new SignApksBuilder();
+        builder.setKeyStoreId(KEY_STORE_ID);
+        builder.setKeyAlias(getClass().getSimpleName());
+        builder.setApksToSign("SignApksBuilderTest.apk, *chocolate*.apk, *-unsigned.apk");
+        builder.setArchiveSignedApks(true);
+        builder.setArchiveUnsignedApks(false);
 
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+        FreeStyleBuild build = testJenkins.buildAndAssertSuccess(job);
+        List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
+
+        assertThat(artifacts.size(), equalTo(3));
+        List<String> artifactNames = artifacts.stream().map(Run.Artifact::getFileName).collect(Collectors.toList());
+        assertThat(artifactNames, everyItem(endsWith("-signed.apk")));
+    }
+
+    @Test
+    public void doesNotMatchTheSameApkMoreThanOnce() throws Exception {
+        SignApksBuilder builder = new SignApksBuilder();
+        builder.setKeyStoreId(KEY_STORE_ID);
+        builder.setKeyAlias(getClass().getSimpleName());
+        builder.setApksToSign("SignApksBuilderTest.apk, *Test.apk");
+        builder.setArchiveSignedApks(true);
+        builder.setArchiveUnsignedApks(false);
+
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+        FreeStyleBuild build = testJenkins.buildAndAssertSuccess(job);
+        List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
+
+        assertThat(artifacts.size(), equalTo(1));
     }
 
     @Test
