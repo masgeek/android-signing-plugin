@@ -54,7 +54,6 @@ public class SignApksStepTest {
 
     @Test
     public void dslWorks() throws Exception {
-        // job setup
         WorkflowJob job = testJenkins.jenkins.createProject(WorkflowJob.class, getClass().getSimpleName());
         job.setDefinition(new CpsFlowDefinition(String.format(
             "node('%s') {%n" +
@@ -78,5 +77,102 @@ public class SignApksStepTest {
         assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest-signed.apk")));
         assertThat(zipalign.lastProc.cmds().get(0), startsWith(androidHome));
     }
-        
+
+    @Test
+    public void setsAndroidHomeFromEnvVarsIfNotSpecifiedInScript() throws Exception {
+        WorkflowJob job = testJenkins.jenkins.createProject(WorkflowJob.class, getClass().getSimpleName());
+        job.setDefinition(new CpsFlowDefinition(String.format(
+            "node('%s') {%n" +
+            "  wrap($class: 'CopyTestWorkspace') {%n" +
+            "    signAndroidApks(" +
+            "      keyStoreId: '%s',%n" +
+            "      keyAlias: '%s',%n" +
+            "      apksToSign: '**/*-unsigned.apk'%n" +
+            "    )%n" +
+            "  }%n" +
+            "}", getClass().getSimpleName(), TestKeyStore.KEY_STORE_ID, TestKeyStore.KEY_ALIAS)));
+
+        WorkflowRun build = testJenkins.buildAndAssertSuccess(job);
+        List<String> artifactNames = build.getArtifacts().stream().map(Run.Artifact::getFileName).collect(Collectors.toList());
+
+        assertThat(artifactNames.size(), equalTo(1));
+        assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest-signed.apk")));
+        assertThat(zipalign.lastProc.cmds().get(0), startsWith(androidHome));
+    }
+
+    @Test
+    public void setsAndroidZipalignFromEnvVarsIfNotSpecifiedInScript() throws Exception {
+        URL altZipalignUrl = getClass().getResource("/alt-zipalign/zipalign");
+        String altZipalign = new File(altZipalignUrl.toURI()).getAbsolutePath();
+        EnvironmentVariablesNodeProperty prop = new EnvironmentVariablesNodeProperty();
+        EnvVars envVars = prop.getEnvVars();
+        envVars.put("ANDROID_ZIPALIGN", altZipalign);
+
+        WorkflowJob job = testJenkins.jenkins.createProject(WorkflowJob.class, getClass().getSimpleName());
+        job.setDefinition(new CpsFlowDefinition(String.format(
+            "node('%s') {%n" +
+            "  wrap($class: 'CopyTestWorkspace') {%n" +
+            "    signAndroidApks(" +
+            "      keyStoreId: '%s',%n" +
+            "      keyAlias: '%s',%n" +
+            "      apksToSign: '**/*-unsigned.apk'%n" +
+            "    )%n" +
+            "  }%n" +
+            "}", getClass().getSimpleName(), TestKeyStore.KEY_STORE_ID, TestKeyStore.KEY_ALIAS)));
+
+        WorkflowRun build = testJenkins.buildAndAssertSuccess(job);
+        List<String> artifactNames = build.getArtifacts().stream().map(Run.Artifact::getFileName).collect(Collectors.toList());
+
+        assertThat(artifactNames.size(), equalTo(1));
+        assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest-signed.apk")));
+        assertThat(zipalign.lastProc.cmds().get(0), startsWith(androidHome));
+    }
+
+    @Test
+    public void doesNotUseEnvVarsIfScriptSpecifiesAndroidHomeOrZipalign() throws Exception {
+        URL altAndroidHomeUrl = getClass().getResource("/win-android");
+        String altAndroidHome = new File(altAndroidHomeUrl.toURI()).getAbsolutePath();
+
+        EnvironmentVariablesNodeProperty prop = new EnvironmentVariablesNodeProperty();
+        EnvVars envVars = prop.getEnvVars();
+        envVars.put("ANDROID_ZIPALIGN", "/fail/zipalign");
+        testJenkins.jenkins.getGlobalNodeProperties().add(prop);
+
+        WorkflowJob job = testJenkins.jenkins.createProject(WorkflowJob.class, getClass().getSimpleName());
+        job.setDefinition(new CpsFlowDefinition(String.format(
+            "node('%s') {%n" +
+            "  wrap($class: 'CopyTestWorkspace') {%n" +
+            "    signAndroidApks(" +
+            "      keyStoreId: '%s',%n" +
+            "      keyAlias: '%s',%n" +
+            "      apksToSign: '**/*-unsigned.apk',%n" +
+            "      androidHome: '%s'%n" +
+            "    )%n" +
+            "  }%n" +
+            "}", getClass().getSimpleName(), TestKeyStore.KEY_STORE_ID, TestKeyStore.KEY_ALIAS, altAndroidHome)));
+
+        testJenkins.buildAndAssertSuccess(job);
+
+        assertThat(zipalign.lastProc.cmds().get(0), startsWith(altAndroidHome));
+
+        URL altZipalignUrl = getClass().getResource("/alt-zipalign/zipalign");
+        String altZipalign = new File(altZipalignUrl.toURI()).getAbsolutePath();
+
+        job.setDefinition(new CpsFlowDefinition(String.format(
+            "node('%s') {%n" +
+            "  wrap($class: 'CopyTestWorkspace') {%n" +
+            "    signAndroidApks(" +
+            "      keyStoreId: '%s',%n" +
+            "      keyAlias: '%s',%n" +
+            "      apksToSign: '**/*-unsigned.apk',%n" +
+            "      zipalignPath: '%s'%n" +
+            "    )%n" +
+            "  }%n" +
+            "}", getClass().getSimpleName(), TestKeyStore.KEY_STORE_ID, TestKeyStore.KEY_ALIAS, altZipalign)));
+
+        testJenkins.buildAndAssertSuccess(job);
+
+        assertThat(zipalign.lastProc.cmds().get(0), startsWith(altZipalign));
+    }
+
 }

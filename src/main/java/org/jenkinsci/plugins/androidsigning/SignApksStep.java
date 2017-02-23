@@ -2,6 +2,7 @@ package org.jenkinsci.plugins.androidsigning;
 
 import com.google.inject.Inject;
 
+import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousNonBlockingStepExecution;
@@ -12,6 +13,7 @@ import org.kohsuke.stapler.DataBoundSetter;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
+import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
@@ -123,16 +125,29 @@ public class SignApksStep extends AbstractStepImpl {
         @SuppressWarnings("unused")
         private transient TaskListener listener;
 
+        @StepContextParameter
+        private transient EnvVars env;
+
         @Override
         protected Void run() throws Exception {
+            String androidHome = step.getAndroidHome();
+            String zipalignPath = step.getZipalignPath();
+            if (StringUtils.isEmpty(androidHome) && StringUtils.isEmpty(zipalignPath)) {
+                if (StringUtils.isEmpty(androidHome)) {
+                    androidHome = env.get(ZipalignTool.ENV_ANDROID_HOME);
+                }
+                if (StringUtils.isEmpty(zipalignPath)) {
+                    zipalignPath = env.get(ZipalignTool.ENV_ZIPALIGN_PATH);
+                }
+            }
             SignApksBuilder builder = new SignApksBuilder();
             builder.setKeyStoreId(step.getKeyStoreId());
             builder.setKeyAlias(step.getKeyAlias());
             builder.setApksToSign(step.getApksToSign());
             builder.setArchiveSignedApks(step.getArchiveSignedApks());
             builder.setArchiveUnsignedApks(step.getArdhiveUnsigedApks());
-            builder.setAndroidHome(step.getAndroidHome());
-            builder.setZipalignPath(step.getZipalignPath());
+            builder.setAndroidHome(androidHome);
+            builder.setZipalignPath(zipalignPath);
             builder.perform(build, workspace, launcher, listener);
             return null;
         }
