@@ -9,11 +9,10 @@ import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-import java.util.Collections;
-
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
+import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.Run;
@@ -28,6 +27,8 @@ public class SignApksStep extends AbstractStepImpl {
     private String keyAlias;
     @CheckForNull
     private String apksToSign;
+    private String androidHome;
+    private String zipalignPath;
     private boolean archiveSignedApks = true;
     private boolean archiveUnsignedApks = false;
 
@@ -60,6 +61,16 @@ public class SignApksStep extends AbstractStepImpl {
         archiveUnsignedApks = x;
     }
 
+    @DataBoundSetter
+    public void setAndroidHome(String x) {
+        androidHome = x;
+    }
+
+    @DataBoundSetter
+    public void setZipalignPath(String x) {
+        zipalignPath = x;
+    }
+
     public String getKeyStoreId() {
         return keyStoreId;
     }
@@ -78,6 +89,14 @@ public class SignApksStep extends AbstractStepImpl {
 
     public boolean getArdhiveUnsigedApks() {
         return archiveUnsignedApks;
+    }
+
+    public String getAndroidHome() {
+        return androidHome;
+    }
+
+    public String getZipalignPath() {
+        return zipalignPath;
     }
 
 
@@ -106,16 +125,20 @@ public class SignApksStep extends AbstractStepImpl {
 
         @Override
         protected Void run() throws Exception {
-            Apk signingEntry = new Apk(
-                step.getKeyStoreId(), step.getKeyAlias(), step.getApksToSign())
-                    .archiveSignedApks(step.getArchiveSignedApks())
-                    .archiveUnsignedApk(step.getArdhiveUnsigedApks());
-            SignApksBuilder builder = new SignApksBuilder(Collections.singletonList(signingEntry));
+            SignApksBuilder builder = new SignApksBuilder();
+            builder.setKeyStoreId(step.getKeyStoreId());
+            builder.setKeyAlias(step.getKeyAlias());
+            builder.setApksToSign(step.getApksToSign());
+            builder.setArchiveSignedApks(step.getArchiveSignedApks());
+            builder.setArchiveUnsignedApks(step.getArdhiveUnsigedApks());
+            builder.setAndroidHome(step.getAndroidHome());
+            builder.setZipalignPath(step.getZipalignPath());
             builder.perform(build, workspace, launcher, listener);
             return null;
         }
     }
 
+    @Extension
     public static class DescriptorImpl extends AbstractStepDescriptorImpl {
         public DescriptorImpl() {
             super(SignApksStepExecution.class);
