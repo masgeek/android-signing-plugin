@@ -281,12 +281,12 @@ public class SignApksBuilderTest {
 
         List<String> relPaths = artifacts.stream().map(artifact -> artifact.relativePath).collect(Collectors.toList());
         assertThat(relPaths, hasItems(
-            endsWith("/" + KEY_STORE_ID + "/1/SignApksBuilderTest-signed.apk"),
-            endsWith("/" + KEY_STORE_ID + "/1/SignApksBuilderTest-unsigned.apk"),
-            endsWith("/" + KEY_STORE_ID + "/2/SignApksBuilderTest.apk"),
-            endsWith("/" + KEY_STORE_ID + "/2/SignApksBuilderTest-signed.apk")));
+            "SignApksBuilder-out/SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-signed.apk",
+            "SignApksBuilder-out/SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-unsigned.apk",
+            "SignApksBuilder-out/SignApksBuilderTest.apk/SignApksBuilderTest.apk",
+            "SignApksBuilder-out/SignApksBuilderTest.apk/SignApksBuilderTest-signed.apk"));
 
-        FilePath[] workApks = build.getWorkspace().list("SignApksBuilder-out-*/" + KEY_STORE_ID + "/**/*.apk");
+        FilePath[] workApks = build.getWorkspace().list("SignApksBuilder-out/**/*.apk");
         assertThat(workApks.length, equalTo(4));
 
         //noinspection Duplicates
@@ -326,15 +326,17 @@ public class SignApksBuilderTest {
         VirtualFile archive = build.getArtifactManager().root();
         VirtualFile[] builderDirs = archive.list();
 
-        assertThat(builderDirs.length, equalTo(2));
+        assertThat(builderDirs.length, equalTo(1));
 
-        for (VirtualFile builderDir : builderDirs) {
-            List<String> apkNames = Arrays.asList(builderDir.list("**/*.apk"));
-            assertThat(apkNames.size(), equalTo(2));
-            assertThat(apkNames, hasItem(endsWith("/SignApksBuilderTest-signed.apk")));
-        }
+        VirtualFile builderDir = builderDirs[0];
+        List<String> apkNames = Arrays.asList(builderDir.list("**/*.apk"));
+        assertThat(apkNames.size(), equalTo(4));
+        assertThat(apkNames, hasItem("SignApksBuilderTest.apk/SignApksBuilderTest.apk"));
+        assertThat(apkNames, hasItem("SignApksBuilderTest.apk/SignApksBuilderTest-signed.apk"));
+        assertThat(apkNames, hasItem("SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-unsigned.apk"));
+        assertThat(apkNames, hasItem("SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-signed.apk"));
 
-        FilePath[] workApks = build.getWorkspace().list("SignApksBuilder-out-*/" + KEY_STORE_ID + "/**/*.apk");
+        FilePath[] workApks = build.getWorkspace().list("SignApksBuilder-out/**/*.apk");
 
         assertThat(workApks.length, equalTo(4));
 

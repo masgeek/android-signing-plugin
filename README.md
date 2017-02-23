@@ -90,14 +90,16 @@ plugin will replace the `-unsigned` component with `-signed` on the output APK.
 Otherwise, the plugin will just insert `-signed` before `.apk` in the unsigned 
 APK name.
 
-Currently, all signed APKs for a single _Sign APKs_ build step go in a temporary
-workspace directory named like `SignApksBuilder-out-XXX/myApp.keyStore/1/myApk-signed.apk`,
-where `XXX` is some auto-generated unique component, `myApp.keyStore` is the 
-ID of the Jenkins credentials you configured to sign the APK, and `1` is a 
-counter for the total number of input APKs the build step is signing.  This 
-is all to prevent the possibility of multiple signing steps in a single job 
-overwriting each other's output APKs, and multiple APKs matched within a 
-signing step colliding.  If you are using the plugin's _Archive Signed APKs_
+Currently, all signed APKs for a single _Sign APKs_ build step go in a workspace
+directory named like `SignApksBuilder-out/my-app-unsigned.apk/my-app-signed.apk`,
+where `my-app-unsigned.apk` is a directory named after the unsigned input APK.
+This is to avoid multiple signing steps in a single job overwriting each other's 
+output APKs, and multiple APKs matched within a signing step colliding.  It's 
+clearly not fool-proof, however, so be mindful if you are signing multple APKs
+in a single job and/or signing step.  If you are using the plugin's 
+_Archive Signed APKs_ and/or _Archive Unsigned APKs_ option, the plugin 
+places the appropirate artifacts in under the `SignApksBuilder-out/my-app-unsigned.apk/`
+directory in the build's archive.
 
 ### Pipeline
 
