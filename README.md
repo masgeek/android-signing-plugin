@@ -98,7 +98,7 @@ output APKs, and multiple APKs matched within a signing step colliding.  It's
 clearly not fool-proof, however, so be mindful if you are signing multple APKs
 in a single job and/or signing step.  If you are using the plugin's 
 _Archive Signed APKs_ and/or _Archive Unsigned APKs_ option, the plugin 
-places the appropirate artifacts in under the `SignApksBuilder-out/my-app-unsigned.apk/`
+places the appropriate artifacts under the `SignApksBuilder-out/my-app-unsigned.apk/`
 directory in the build's archive.
 
 ### Pipeline
