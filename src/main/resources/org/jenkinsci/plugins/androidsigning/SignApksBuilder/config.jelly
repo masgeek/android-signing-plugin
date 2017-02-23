@@ -10,7 +10,6 @@
     </f:entry>
   </f:advanced>
 
-  <!--<table width="100%">-->
   <f:entry field="keyStoreId" title="${%field.keyStoreId}">
     <f:select/>
   </f:entry>
@@ -26,6 +25,5 @@
   <f:entry field="archiveUnsignedApks" title="${%field.archiveUnsignedApks}">
     <f:checkbox/>
   </f:entry>
-  <!--</table>-->
 
 </j:jelly>
