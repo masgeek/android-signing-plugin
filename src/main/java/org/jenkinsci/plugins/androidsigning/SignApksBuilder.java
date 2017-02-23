@@ -342,7 +342,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
     private String relativeToWorkspace(FilePath ws, FilePath path) throws IOException, InterruptedException {
         URI relUri = ws.toURI().relativize(path.toURI());
-        return relUri.getPath();
+        return relUri.getPath().replaceFirst("/$", "");
     }
 
     private StandardCertificateCredentials getKeystore(String keyStoreName, Item item) {
