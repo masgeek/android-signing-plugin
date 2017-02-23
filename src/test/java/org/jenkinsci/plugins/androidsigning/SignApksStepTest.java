@@ -10,15 +10,19 @@ import org.junit.rules.RuleChain;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.PretendSlave;
 
+import java.io.File;
+import java.net.URL;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import hudson.EnvVars;
 import hudson.model.Run;
+import hudson.slaves.EnvironmentVariablesNodeProperty;
 
 import static org.hamcrest.CoreMatchers.endsWith;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.CoreMatchers.startsWith;
 import static org.junit.Assert.assertThat;
 
 
@@ -30,13 +34,21 @@ public class SignApksStepTest {
     @Rule
     public RuleChain jenkinsChain = RuleChain.outerRule(testJenkins).around(testKeyStore);
 
+    private String androidHome;
     private PretendSlave slave;
+    private FakeZipalign zipalign;
 
     @Before
-    public void addSlaveWithZipalignLauncher() throws Exception {
-        EnvVars env = new EnvVars();
-        env.put("ANDROID_HOME", "");
-        slave = testJenkins.createPretendSlave(new FakeZipalign());
+    public void setupEnvironment() throws Exception {
+        URL androidHomeUrl = getClass().getResource("/android");
+        androidHome = new File(androidHomeUrl.toURI()).getAbsolutePath();
+        EnvironmentVariablesNodeProperty prop = new EnvironmentVariablesNodeProperty();
+        EnvVars envVars = prop.getEnvVars();
+        envVars.put("ANDROID_HOME", androidHome);
+        testJenkins.jenkins.getGlobalNodeProperties().add(prop);
+        zipalign = new FakeZipalign();
+        slave = testJenkins.createPretendSlave(zipalign);
+        slave.getComputer().getEnvironment().put("ANDROID_HOME", androidHome);
         slave.setLabelString(slave.getLabelString() + " " + getClass().getSimpleName());
     }
 
@@ -45,7 +57,7 @@ public class SignApksStepTest {
         // job setup
         WorkflowJob job = testJenkins.jenkins.createProject(WorkflowJob.class, getClass().getSimpleName());
         job.setDefinition(new CpsFlowDefinition(String.format(
-            "node {%n" +
+            "node('%s') {%n" +
             "  wrap($class: 'CopyTestWorkspace') {%n" +
             "    signAndroidApks(" +
             "      keyStoreId: '%s',%n" +
@@ -56,7 +68,7 @@ public class SignApksStepTest {
             "      androidHome: env.ANDROID_HOME%n" +
             "    )%n" +
             "  }%n" +
-            "}", TestKeyStore.KEY_STORE_ID, TestKeyStore.KEY_ALIAS)));
+            "}", getClass().getSimpleName(), TestKeyStore.KEY_STORE_ID, TestKeyStore.KEY_ALIAS)));
 
         WorkflowRun build = testJenkins.buildAndAssertSuccess(job);
         List<String> artifactNames = build.getArtifacts().stream().map(Run.Artifact::getFileName).collect(Collectors.toList());
@@ -64,6 +76,7 @@ public class SignApksStepTest {
         assertThat(artifactNames.size(), equalTo(2));
         assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest-unsigned.apk")));
         assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest-signed.apk")));
+        assertThat(zipalign.lastProc.cmds().get(0), startsWith(androidHome));
     }
         
 }
