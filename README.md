@@ -73,23 +73,61 @@ APK in a Jenkins job as well.
 
 Once the prerequisites are setup, you can now add the _Sign APKs_ build step to
 a job.  The configuration UI is fairly straight forward.  Select the certificate
-credential you created previously, supply the alias of the private key and
-certificate chain, and finally supply the name or glob pattern specifying the
-APK files relative to the workspace you want to sign.
+credential you created previously, supply the alias of the private key/certificate
+chain, and finally supply the name or [Ant-style glob](https://ant.apache.org/manual/dirtasks.html)
+pattern specifying the APK files relative to the job workspace you want to sign.
+You can specify multiple glob patterns separated by commas if you wish.  For most
+projects `**/*-unsigned.apk` should suffice.
 
 Note that this plugin assumes your Android build has produced an unsigned, 
-unaligned APK.  As of this writing, the plugin assumes the input APK will have
-a name like `my-app-unsigned.apk`.  It will replace the `-unsigned` component 
-with `-signed` on the output APK.  If you are using the Gradle Android plugin, 
-this means that a previous Gradle build step invoked the `assembleRelease` task
-on your build script and there were no `signingConfig` blocks that applied to 
-your APK.  In that case Gradle will have produced the necessary unsigned, 
-unaligned APK, ready for the Android Signing Plugin to sign.
+unaligned APK.  If you are using the Gradle Android plugin to build your APK, 
+that means a previous Jenkins build step probably invoked the `assembleRelease` 
+task on your build script and there were no `signingConfig` blocks that applied 
+to your APK.  In that case Gradle will have produced the necessary unsigned, 
+unaligned APK, ready for the Android Signing Plugin to sign.  Your unsigned 
+APK will then likely have the standard `-unsigned.apk` suffix, in which case the
+plugin will replace the `-unsigned` component with `-signed` on the output APK.
+Otherwise, the plugin will just insert `-signed` before `.apk` in the unsigned 
+APK name.
+
+Currently, all signed APKs for a single _Sign APKs_ build step go in a temporary
+workspace directory named like `SignApksBuilder-out-XXX/myApp.keyStore/1/myApk-signed.apk`,
+where `XXX` is some auto-generated unique component, `myApp.keyStore` is the 
+ID of the Jenkins credentials you configured to sign the APK, and `1` is a 
+counter for the total number of input APKs the build step is signing.  This 
+is all to prevent the possibility of multiple signing steps in a single job 
+overwriting each other's output APKs, and multiple APKs matched within a 
+signing step colliding.  If you are using the plugin's _Archive Signed APKs_
+
+### Pipeline
+
+Here is an example of signing APKs from a [Pipeline](https://jenkins.io/doc/book/pipeline/) script:
+```
+node {
+    // ... steps to build unsigned APK ...
+    signAndroidApks (
+      keyStoreId: "myApp.signerKeyStore", keyAlias: "myTeam",
+      apksToSign: "**/*-unsigned.apk"
+      // you can override these within the script if necessary
+      // androidHome: env.ANDROID_HOME
+      // zipalignPath: env.ANDROID_ZIPALIGN
+    )
+}
+```
+Like the Free Style Job build step described above, the Pipeline step will attempt
+to use `ANDROID_ZIPALIGN` and `ANDROID_HOME`, in that priority order, from the
+Jenkins environment variables.  Note the wrapping 
+[`node`](https://jenkins.io/doc/pipeline/steps/workflow-durable-task-step/#node-allocate-node)
+context; this plugin assumes the Pipeline step will have a workspace available.
 
 ## Support
 
 Please submit all issues to [Jenkins Jira](https://issues.jenkins-ci.org/issues/?jql=project%3DJENKINS%20AND%20component%3Dandroid-signing-plugin).
 Do not use GitHub issues.
+
+## Release Notes
+
+See the [Android Signing](https://plugins.jenkins.io/android-signing) page on the Jenkins.io site.
 
 ## License and Copyright
 
