@@ -153,7 +153,7 @@ public class SignApksStep extends AbstractStepImpl {
         }
     }
 
-    @Extension
+    @Extension(optional = true)
     public static class DescriptorImpl extends AbstractStepDescriptorImpl {
         public DescriptorImpl() {
             super(SignApksStepExecution.class);
