@@ -108,11 +108,12 @@ Here is an example of signing APKs from a [Pipeline](https://jenkins.io/doc/book
 node {
     // ... steps to build unsigned APK ...
     signAndroidApks (
-      keyStoreId: "myApp.signerKeyStore", keyAlias: "myTeam",
-      apksToSign: "**/*-unsigned.apk"
-      // you can override these within the script if necessary
-      // androidHome: env.ANDROID_HOME
-      // zipalignPath: env.ANDROID_ZIPALIGN
+        keyStoreId: "myApp.signerKeyStore",
+        keyAlias: "myTeam",
+        apksToSign: "**/*-unsigned.apk"
+        // you can override these within the script if necessary
+        // androidHome: env.ANDROID_HOME
+        // zipalignPath: env.ANDROID_ZIPALIGN
     )
 }
 ```
@@ -121,6 +122,37 @@ to use `ANDROID_ZIPALIGN` and `ANDROID_HOME`, in that priority order, from the
 Jenkins environment variables.  Note the wrapping 
 [`node`](https://jenkins.io/doc/pipeline/steps/workflow-durable-task-step/#node-allocate-node)
 context; this plugin assumes the Pipeline step will have a workspace available.
+
+### Job DSL
+
+This plugin offers a [Job DSL](https://github.com/jenkinsci/job-dsl-plugin/wiki) extension.
+You can include a _Sign APKs_ build step in the `steps` context of a Job DSL script:
+```
+freeStyleJob('myApp.seed') {
+    scm {
+        git 'git://github.com/mygithub/myApp.git', 'master', {
+            extensions {
+                relativeTragetDirectory 'myApp'
+            }
+        }
+    }
+    steps {
+        gradle {
+            rootBuildScriptDir 'myApp'
+            useWrapper true
+            tasks 'clean assembleRelease'
+        }
+        signAndroidApks '**/myApp-unsigned.apk', {
+            keyStoreId 'myApp.keyStore'
+            keyAlias 'myAppKey'
+            archiveSignedApks true
+            archiveUnsignedApks true
+            androidHome '/opt/android-sdk'
+        }
+    }
+}
+```
+The availble options are analogous to those in the build step configuration web UI.
 
 ## Support
 
