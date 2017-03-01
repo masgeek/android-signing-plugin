@@ -101,10 +101,12 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
     @Deprecated
     public SignApksBuilder(List<Apk> entries) {
-        if (entries.size() != 1) {
+        if (entries.size() == 1) {
+            setPropertiesFromOldSigningEntry(entries.get(0));
+        }
+        else if (entries.size() > 1) {
             throw new UnsupportedOperationException("this constructor is deprecated; use multiple build steps instead of multiple signing entries");
         }
-        setPropertiesFromOldSigningEntry(entries.get(0));
     }
 
     @DataBoundConstructor
