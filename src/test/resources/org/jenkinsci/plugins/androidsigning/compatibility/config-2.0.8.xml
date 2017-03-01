@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <org.jenkinsci.plugins.androidsigning.SignApksBuilder plugin="android-signing@2.0.8">
+      <entries>
+        <org.jenkinsci.plugins.androidsigning.Apk>
+          <keyStore>android-signing-1</keyStore>
+          <alias>key1</alias>
+          <selection>build/outputs/apk/*-unsigned.apk</selection>
+          <archiveUnsignedApks>true</archiveUnsignedApks>
+          <archiveSignedApks>true</archiveSignedApks>
+        </org.jenkinsci.plugins.androidsigning.Apk>
+        <org.jenkinsci.plugins.androidsigning.Apk>
+          <keyStore>android-signing-1</keyStore>
+          <alias>key2</alias>
+          <selection>SignApksBuilderTest.apk, SignApksBuilderTest-choc*.apk</selection>
+          <archiveUnsignedApks>false</archiveUnsignedApks>
+          <archiveSignedApks>true</archiveSignedApks>
+        </org.jenkinsci.plugins.androidsigning.Apk>
+        <org.jenkinsci.plugins.androidsigning.Apk>
+          <keyStore>android-signing-2</keyStore>
+          <alias>key1</alias>
+          <selection>**/*.apk</selection>
+          <archiveUnsignedApks>false</archiveUnsignedApks>
+          <archiveSignedApks>false</archiveSignedApks>
+        </org.jenkinsci.plugins.androidsigning.Apk>
+      </entries>
+    </org.jenkinsci.plugins.androidsigning.SignApksBuilder>
+    <org.jenkinsci.plugins.androidsigning.SignApksBuilder plugin="android-signing@2.0.8">
+      <entries>
+        <org.jenkinsci.plugins.androidsigning.Apk>
+          <keyStore>android-signing-1</keyStore>
+          <alias>key1</alias>
+          <selection>build/outputs/apk/*-unsigned.apk</selection>
+          <archiveUnsignedApks>true</archiveUnsignedApks>
+          <archiveSignedApks>true</archiveSignedApks>
+        </org.jenkinsci.plugins.androidsigning.Apk>
+        <org.jenkinsci.plugins.androidsigning.Apk>
+          <keyStore>android-signing-1</keyStore>
+          <alias>key2</alias>
+          <selection>SignApksBuilderTest.apk, SignApksBuilderTest-choc*.apk</selection>
+          <archiveUnsignedApks>false</archiveUnsignedApks>
+          <archiveSignedApks>true</archiveSignedApks>
+        </org.jenkinsci.plugins.androidsigning.Apk>
+      </entries>
+    </org.jenkinsci.plugins.androidsigning.SignApksBuilder>
+  </builders>
+  <publishers/>
+  <buildWrappers/>
+</project>

@@ -140,7 +140,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
     }
 
     boolean isMigrated() {
-        return entries == null;
+        return entries == null || entries.isEmpty();
     }
 
     @Deprecated

@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <org.jenkinsci.plugins.androidsigning.SignApksBuilder plugin="android-signing@2.1.0-SNAPSHOT">
+      <zipalignPath>/usr/local/android-sdk-macosx/build-tools/23.0.3/zipalign</zipalignPath>
+      <keyStoreId>android-team-1</keyStoreId>
+      <keyAlias>android-team-1</keyAlias>
+      <apksToSign>SignApksBuilderTest-chocolate*.apk</apksToSign>
+      <archiveSignedApks>true</archiveSignedApks>
+      <archiveUnsignedApks>true</archiveUnsignedApks>
+    </org.jenkinsci.plugins.androidsigning.SignApksBuilder>
+    <org.jenkinsci.plugins.androidsigning.SignApksBuilder plugin="android-signing@2.1.0-SNAPSHOT">
+      <keyStoreId>android-team-2</keyStoreId>
+      <keyAlias>android-team-2</keyAlias>
+      <apksToSign>**/*-unsigned.apk</apksToSign>
+      <archiveSignedApks>true</archiveSignedApks>
+      <archiveUnsignedApks>false</archiveUnsignedApks>
+    </org.jenkinsci.plugins.androidsigning.SignApksBuilder>
+  </builders>
+  <publishers/>
+  <buildWrappers/>
+</project>

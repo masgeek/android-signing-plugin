@@ -57,7 +57,6 @@ public class MultiEntryToSingleEntryBuilderMigration extends ItemListener {
         }
         try {
             job.getBuildersList().replaceBy(migrated);
-            job.save();
         }
         catch (IOException e) {
             log.log(Level.WARNING, "error migrating " + SignApksBuilder.class.getSimpleName() + " steps of job " + job, e);
