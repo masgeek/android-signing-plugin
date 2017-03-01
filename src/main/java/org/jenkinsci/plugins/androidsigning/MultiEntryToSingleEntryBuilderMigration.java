@@ -24,15 +24,18 @@ public class MultiEntryToSingleEntryBuilderMigration extends ItemListener {
 
     @Override
     public void onLoaded() {
-        List<Project> jobs = Jenkins.getInstance().getAllItems(Project.class);
+        Jenkins jenkins = Jenkins.getInstance();
+        if (jenkins == null) {
+            log.warning("jenkins instance is null; cannot migrate old job data");
+            return;
+        }
+        List<Project> jobs = jenkins.getAllItems(Project.class);
         for (Project<?,?> job : jobs) {
             migrateBuildersOfJob(job);
         }
     }
 
     private void migrateBuildersOfJob(Project<?,?> job) {
-        Computer.threadPoolForRemoting.isShutdown();
-
         DescribableList<Builder, Descriptor<Builder>> old = job.getBuildersList();
         boolean isMigrated = old.stream().allMatch(builder -> {
             if (builder instanceof  SignApksBuilder) {
