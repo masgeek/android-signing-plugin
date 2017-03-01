@@ -7,6 +7,7 @@ import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.impl.CertificateCredentialsImpl;
 
+import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -22,12 +23,17 @@ public class TestKeyStore implements TestRule {
     public static final String KEY_STORE_ID = SignApksBuilderTest.class.getSimpleName() + ".keyStore";
     public static final String KEY_ALIAS = SignApksBuilderTest.class.getSimpleName();
 
+    public final JenkinsRule testJenkins;
+    public final String credentialsId;
     public StandardCertificateCredentials credentials;
 
-    private JenkinsRule testJenkins;
+    TestKeyStore(JenkinsRule testJenkins) {
+        this(testJenkins, KEY_STORE_ID);
+    }
 
-    public TestKeyStore(JenkinsRule testJenkins) {
+    TestKeyStore(JenkinsRule testJenkins, String credentialsId) {
         this.testJenkins = testJenkins;
+        this.credentialsId = credentialsId;
     }
 
     @Override
@@ -46,7 +52,7 @@ public class TestKeyStore implements TestRule {
         };
     }
 
-    private void addCredentials() {
+    void addCredentials() {
         if (testJenkins.jenkins == null) {
             return;
         }
@@ -56,7 +62,7 @@ public class TestKeyStore implements TestRule {
             keyStoreIn.read(keyStoreBytes);
             String keyStore = new String(Base64.getEncoder().encode(keyStoreBytes), "utf-8");
             credentials = new CertificateCredentialsImpl(
-                CredentialsScope.GLOBAL, KEY_STORE_ID, "", SignApksBuilderTest.class.getSimpleName(),
+                CredentialsScope.GLOBAL, credentialsId, "", SignApksBuilderTest.class.getSimpleName(),
                 new CertificateCredentialsImpl.UploadedKeyStoreSource(keyStore));
             CredentialsStore store = CredentialsProvider.lookupStores(testJenkins.jenkins).iterator().next();
             store.addCredentials(Domain.global(), credentials);
@@ -66,7 +72,7 @@ public class TestKeyStore implements TestRule {
         }
     }
 
-    private void removeCredentials() {
+    void removeCredentials() {
         if (testJenkins.jenkins == null) {
             return;
         }

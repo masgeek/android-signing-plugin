@@ -485,6 +485,54 @@ public class SignApksBuilderTest {
         assertThat(option.getValueAttribute(), equalTo(KEY_STORE_ID));
     }
 
+    @Test
+    public void savesTheKeyStoreIdWithMultipleKeyStoresPresent() throws Exception {
+        TestKeyStore otherKey = new TestKeyStore(testJenkins, "otherKey");
+        otherKey.addCredentials();
+
+        SignApksBuilder original = new SignApksBuilder();
+        original.setKeyStoreId(KEY_STORE_ID);
+        original.setKeyAlias(KEY_ALIAS);
+        original.setApksToSign("**/*-unsigned.apk");
+        original.setArchiveSignedApks(!original.getArchiveSignedApks());
+        original.setArchiveUnsignedApks(!original.getArchiveUnsignedApks());
+        original.setAndroidHome(androidHome.getRemote());
+        FreeStyleProject job = testJenkins.createFreeStyleProject();
+        job.getBuildersList().add(original);
+
+        // have to do this because Descriptor.calcFillSettings() fails outside the context of a Stapler web request
+        JenkinsRule.WebClient browser = testJenkins.createWebClient();
+        HtmlPage configPage = browser.getPage(job, "configure");
+        HtmlForm form = configPage.getFormByName("config");
+        HtmlSelect keyStoreSelect = form.getSelectByName("_.keyStoreId");
+        String fillUrl = keyStoreSelect.getAttribute("fillUrl");
+
+        assertThat(fillUrl, not(isEmptyOrNullString()));
+
+        HtmlOption option1 = keyStoreSelect.getOptionByValue(KEY_STORE_ID);
+        HtmlOption option2 = keyStoreSelect.getOptionByValue(otherKey.credentialsId);
+
+        assertThat(keyStoreSelect.getSelectedOptions().size(), equalTo(1));
+        assertThat(keyStoreSelect.getSelectedOptions().get(0), equalTo(option1));
+
+        keyStoreSelect.setSelectedIndex(keyStoreSelect.getOptions().indexOf(option2));
+
+        testJenkins.submit(form);
+        configPage = browser.getPage(job, "configure");
+        form = configPage.getFormByName("config");
+        keyStoreSelect = form.getSelectByName("_.keyStoreId");
+        HtmlOption selectedOption = keyStoreSelect.getOptions().get(keyStoreSelect.getSelectedIndex());
+
+        assertThat(selectedOption.getValueAttribute(), equalTo(otherKey.credentialsId));
+
+        job = testJenkins.jenkins.getItemByFullName(job.getFullName(), FreeStyleProject.class);
+        original = (SignApksBuilder) job.getBuildersList().get(0);
+
+        assertThat(original.getKeyStoreId(), equalTo(otherKey.credentialsId));
+
+        otherKey.removeCredentials();
+    }
+
     @Test(expected = UnsupportedOperationException.class)
     public void doesNotSupportMultipleEntriesAnyMore() {
         List<Apk> entries = new ArrayList<>();
