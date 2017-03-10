@@ -308,18 +308,24 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             String alignedRelName = archiveDirRelName + "/" + strippedApkName + "-aligned.apk";
             String signedRelName = archiveDirRelName + "/" + strippedApkName + "-signed.apk";
 
-            ArgumentListBuilder zipalignCommand = zipalign.commandFor(unsignedPathName, alignedRelName);
-            listener.getLogger().printf("[SignApksBuilder] %s%n", zipalignCommand);
-            int zipalignResult = launcher.launch()
-                .cmds(zipalignCommand)
-                .pwd(workspace)
-                .stdout(listener)
-                .stderr(listener.getLogger())
-                .join();
+            if (skipZipalign) {
+                listener.getLogger().printf("[SignApksBuilder] skipping zipalign for unsigned apk %s", unsignedApk);
+                alignedRelName = relativeToWorkspace(workspace, unsignedApk);
+            }
+            else {
+                ArgumentListBuilder zipalignCommand = zipalign.commandFor(unsignedPathName, alignedRelName);
+                listener.getLogger().printf("[SignApksBuilder] %s%n", zipalignCommand);
+                int zipalignResult = launcher.launch()
+                    .cmds(zipalignCommand)
+                    .pwd(workspace)
+                    .stdout(listener)
+                    .stderr(listener.getLogger())
+                    .join();
 
-            if (zipalignResult != 0) {
-                listener.fatalError("[SignApksBuilder] zipalign failed: exit code %d", zipalignResult);
-                throw new AbortException(String.format("zipalign failed on APK %s: exit code %d", unsignedPathName, zipalignResult));
+                if (zipalignResult != 0) {
+                    listener.fatalError("[SignApksBuilder] zipalign failed: exit code %d", zipalignResult);
+                    throw new AbortException(String.format("zipalign failed on APK %s: exit code %d", unsignedPathName, zipalignResult));
+                }
             }
 
             FilePath alignedPath = workspace.child(alignedRelName);
