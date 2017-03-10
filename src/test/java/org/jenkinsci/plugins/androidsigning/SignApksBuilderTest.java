@@ -418,6 +418,20 @@ public class SignApksBuilderTest {
     }
 
     @Test
+    public void skipsZipalign() throws Exception {
+        SignApksBuilder builder = new SignApksBuilder();
+        builder.setApksToSign("*-unsigned.apk");
+        builder.setKeyStoreId(KEY_STORE_ID);
+        builder.setKeyAlias(KEY_ALIAS);
+        builder.setSkipZipalign(true);
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+        testJenkins.buildAndAssertSuccess(job);
+
+        assertThat(zipalignLauncher.lastProc, nullValue());
+    }
+
+    @Test
     public void identitySubmission() throws Exception {
         SignApksBuilder original = new SignApksBuilder();
         original.setKeyStoreId(KEY_STORE_ID);

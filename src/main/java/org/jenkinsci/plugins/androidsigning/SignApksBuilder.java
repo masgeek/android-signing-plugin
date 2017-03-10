@@ -96,6 +96,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
     private String apksToSign;
     private boolean archiveSignedApks = true;
     private boolean archiveUnsignedApks = false;
+    private boolean skipZipalign = false;
 
     transient private List<Apk> entries;
 
@@ -209,6 +210,15 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
     public boolean getArchiveUnsignedApks() {
         return archiveUnsignedApks;
+    }
+
+    @DataBoundSetter
+    public void setSkipZipalign(boolean x) {
+        skipZipalign = x;
+    }
+
+    public boolean getSkipZipalign() {
+        return skipZipalign;
     }
 
     @Override
