@@ -31,6 +31,7 @@ public class SignApksStep extends AbstractStepImpl {
     private String apksToSign;
     private String androidHome;
     private String zipalignPath;
+    private boolean skipZipalign = false;
     private boolean archiveSignedApks = true;
     private boolean archiveUnsignedApks = false;
 
@@ -52,6 +53,9 @@ public class SignApksStep extends AbstractStepImpl {
     public void setApksToSign(String x) {
         apksToSign = x;
     }
+
+    @DataBoundSetter
+    public void setSkipZipalign(boolean x) { skipZipalign = x; }
 
     @DataBoundSetter
     public void setArchiveSignedApks(boolean x) {
@@ -83,6 +87,10 @@ public class SignApksStep extends AbstractStepImpl {
 
     public String getApksToSign() {
         return apksToSign;
+    }
+
+    public boolean getSkipZipalign() {
+        return skipZipalign;
     }
 
     public boolean getArchiveSignedApks() {
@@ -144,6 +152,7 @@ public class SignApksStep extends AbstractStepImpl {
             builder.setKeyStoreId(step.getKeyStoreId());
             builder.setKeyAlias(step.getKeyAlias());
             builder.setApksToSign(step.getApksToSign());
+            builder.setSkipZipalign(step.getSkipZipalign());
             builder.setArchiveSignedApks(step.getArchiveSignedApks());
             builder.setArchiveUnsignedApks(step.getArdhiveUnsigedApks());
             builder.setAndroidHome(androidHome);
