@@ -437,6 +437,7 @@ public class SignApksBuilderTest {
         original.setKeyStoreId(KEY_STORE_ID);
         original.setKeyAlias(KEY_ALIAS);
         original.setApksToSign("**/*-unsigned.apk");
+        original.setSkipZipalign(true);
         original.setArchiveSignedApks(!original.getArchiveSignedApks());
         original.setArchiveUnsignedApks(!original.getArchiveUnsignedApks());
         original.setAndroidHome(androidHome.getRemote());
@@ -450,7 +451,7 @@ public class SignApksBuilderTest {
         SignApksBuilder submitted = (SignApksBuilder) job.getBuildersList().get(0);
 
         assertThat(original.getEntries(), nullValue());
-        testJenkins.assertEqualBeans(original, submitted, "keyStoreId,keyAlias,apksToSign,archiveUnsignedApks,archiveSignedApks,androidHome,zipalignPath");
+        testJenkins.assertEqualBeans(original, submitted, "keyStoreId,keyAlias,apksToSign,skipZipalign,archiveUnsignedApks,archiveSignedApks,androidHome,zipalignPath");
     }
 
     @Test
@@ -468,7 +469,7 @@ public class SignApksBuilderTest {
         SignApksBuilder submitted = (SignApksBuilder) job.getBuildersList().get(0);
 
         assertThat(original.getEntries(), nullValue());
-        testJenkins.assertEqualBeans(original, submitted, "keyStoreId,keyAlias,apksToSign,archiveUnsignedApks,archiveSignedApks,androidHome,zipalignPath");
+        testJenkins.assertEqualBeans(original, submitted, "keyStoreId,keyAlias,apksToSign,skipZipalign,archiveUnsignedApks,archiveSignedApks,androidHome,zipalignPath");
     }
 
     @Test
