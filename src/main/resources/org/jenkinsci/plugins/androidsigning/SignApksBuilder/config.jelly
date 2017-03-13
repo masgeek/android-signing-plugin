@@ -2,6 +2,9 @@
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
 
   <f:advanced>
+    <f:entry field="skipZipalign" title="${%field.skipZipalign}">
+      <f:checkbox default="false"/>
+    </f:entry>
     <f:entry field="androidHome" title="${%field.androidHome}">
       <f:textbox/>
     </f:entry>
