@@ -22,6 +22,7 @@ import hudson.slaves.EnvironmentVariablesNodeProperty;
 import static org.hamcrest.CoreMatchers.endsWith;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.junit.Assert.assertThat;
 
@@ -175,4 +176,23 @@ public class SignApksStepTest {
         assertThat(zipalign.lastProc.cmds().get(0), startsWith(altZipalign));
     }
 
+    @Test
+    public void skipsZipalign() throws Exception {
+        WorkflowJob job = testJenkins.jenkins.createProject(WorkflowJob.class, getClass().getSimpleName());
+        job.setDefinition(new CpsFlowDefinition(String.format(
+            "node('%s') {%n" +
+                "  wrap($class: 'CopyTestWorkspace') {%n" +
+                "    signAndroidApks(" +
+                "      keyStoreId: '%s',%n" +
+                "      keyAlias: '%s',%n" +
+                "      apksToSign: '**/*-unsigned.apk',%n" +
+                "      skipZipalign: true%n" +
+                "    )%n" +
+                "  }%n" +
+                "}", getClass().getSimpleName(), TestKeyStore.KEY_STORE_ID, TestKeyStore.KEY_ALIAS)));
+
+        testJenkins.buildAndAssertSuccess(job);
+
+        assertThat(zipalign.lastProc, nullValue());
+    }
 }
