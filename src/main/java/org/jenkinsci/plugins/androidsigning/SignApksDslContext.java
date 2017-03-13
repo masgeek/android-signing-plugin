@@ -26,6 +26,10 @@ public class SignApksDslContext extends ContextExtensionPoint {
             builder.setKeyAlias(x);
         }
 
+        public void skipZipalign(boolean x) {
+            builder.setSkipZipalign(x);
+        }
+
         public void archiveSignedApks(boolean x) {
             builder.setArchiveSignedApks(x);
         }
