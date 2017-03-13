@@ -54,4 +54,22 @@ public class SignApksBuilderCompatibility_2_0_8_Test {
         assertThat(builder.getArchiveSignedApks(), is(false));
     }
 
+    @Test
+    @LocalData
+    public void doesNotSkipZipalignFor_v2_0_8_builders() throws URISyntaxException, IOException {
+
+        FreeStyleProject job = (FreeStyleProject) testJenkins.jenkins.getItem(getClass().getSimpleName());
+        DescribableList<Builder,?> builders = job.getBuildersList();
+
+        assertThat(builders.size(), equalTo(3));
+
+        SignApksBuilder builder = (SignApksBuilder) builders.get(0);
+        assertThat(builder.getSkipZipalign(), is(false));
+
+        builder = (SignApksBuilder) builders.get(1);
+        assertThat(builder.getSkipZipalign(), is(false));
+
+        builder = (SignApksBuilder) builders.get(2);
+        assertThat(builder.getSkipZipalign(), is(false));
+    }
 }
