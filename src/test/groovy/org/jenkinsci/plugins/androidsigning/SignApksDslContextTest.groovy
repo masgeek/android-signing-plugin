@@ -27,6 +27,7 @@ class SignApksDslContextTest {
                         archiveSignedApks true
                         archiveUnsignedApks true
                         androidHome '/fake/android-sdk'
+                        skipZipalign true
                     }
                     signAndroidApks '**/*-other.apk', {
                         keyStoreId 'my.otherKeyStore'
@@ -50,6 +51,7 @@ class SignApksDslContextTest {
         assertThat(signApks.apksToSign, equalTo("**/*-unsigned.apk"))
         assertThat(signApks.keyStoreId, equalTo("my.keyStore"))
         assertThat(signApks.keyAlias, equalTo("myKey"))
+        assertTrue(signApks.skipZipalign)
         assertTrue(signApks.archiveSignedApks)
         assertTrue(signApks.archiveUnsignedApks)
         assertThat(signApks.androidHome, equalTo("/fake/android-sdk"))
@@ -60,6 +62,7 @@ class SignApksDslContextTest {
         assertThat(signApks.apksToSign, equalTo("**/*-other.apk"))
         assertThat(signApks.keyStoreId, equalTo("my.otherKeyStore"))
         assertThat(signApks.keyAlias, equalTo("myOtherKey"))
+        assertFalse(signApks.skipZipalign)
         assertFalse(signApks.archiveSignedApks)
         assertFalse(signApks.archiveUnsignedApks)
         assertThat(signApks.androidHome, nullValue())
