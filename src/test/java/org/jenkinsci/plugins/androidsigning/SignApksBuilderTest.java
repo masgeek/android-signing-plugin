@@ -281,10 +281,10 @@ public class SignApksBuilderTest {
 
         List<String> relPaths = artifacts.stream().map(artifact -> artifact.relativePath).collect(Collectors.toList());
         assertThat(relPaths, hasItems(
-            "SignApksBuilder-out/SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-signed.apk",
-            "SignApksBuilder-out/SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-unsigned.apk",
-            "SignApksBuilder-out/SignApksBuilderTest.apk/SignApksBuilderTest.apk",
-            "SignApksBuilder-out/SignApksBuilderTest.apk/SignApksBuilderTest-signed.apk"));
+            SignApksBuilder.BUILDER_DIR + "/" + KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-signed.apk",
+            SignApksBuilder.BUILDER_DIR + "/" + KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-unsigned.apk",
+            SignApksBuilder.BUILDER_DIR + "/" + KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest.apk/SignApksBuilderTest.apk",
+            SignApksBuilder.BUILDER_DIR + "/" + KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest.apk/SignApksBuilderTest-signed.apk"));
 
         FilePath[] workApks = build.getWorkspace().list("SignApksBuilder-out/**/*.apk");
         assertThat(workApks.length, equalTo(4));
@@ -324,17 +324,17 @@ public class SignApksBuilderTest {
         assertThat(artifacts.size(), equalTo(4));
 
         VirtualFile archive = build.getArtifactManager().root();
-        VirtualFile[] builderDirs = archive.list();
+        VirtualFile[] archiveDirs = archive.list();
 
-        assertThat(builderDirs.length, equalTo(1));
+        assertThat(archiveDirs.length, equalTo(1));
 
-        VirtualFile builderDir = builderDirs[0];
-        List<String> apkNames = Arrays.asList(builderDir.list("**/*.apk"));
+        VirtualFile archiveDir = archiveDirs[0];
+        List<String> apkNames = Arrays.asList(archiveDir.list("**/*.apk"));
         assertThat(apkNames.size(), equalTo(4));
-        assertThat(apkNames, hasItem("SignApksBuilderTest.apk/SignApksBuilderTest.apk"));
-        assertThat(apkNames, hasItem("SignApksBuilderTest.apk/SignApksBuilderTest-signed.apk"));
-        assertThat(apkNames, hasItem("SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-unsigned.apk"));
-        assertThat(apkNames, hasItem("SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-signed.apk"));
+        assertThat(apkNames, hasItem(KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest.apk/SignApksBuilderTest.apk"));
+        assertThat(apkNames, hasItem(KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest.apk/SignApksBuilderTest-signed.apk"));
+        assertThat(apkNames, hasItem(KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-unsigned.apk"));
+        assertThat(apkNames, hasItem(KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-signed.apk"));
 
         FilePath[] workApks = build.getWorkspace().list("SignApksBuilder-out/**/*.apk");
 
@@ -451,7 +451,16 @@ public class SignApksBuilderTest {
         SignApksBuilder submitted = (SignApksBuilder) job.getBuildersList().get(0);
 
         assertThat(original.getEntries(), nullValue());
-        testJenkins.assertEqualBeans(original, submitted, "keyStoreId,keyAlias,apksToSign,skipZipalign,archiveUnsignedApks,archiveSignedApks,androidHome,zipalignPath");
+        testJenkins.assertEqualBeans(original, submitted, String.join(",",
+            "keyStoreId",
+            "keyAlias",
+            "apksToSign",
+            "skipZipalign",
+            "archiveUnsignedApks",
+            "archiveSignedApks",
+            "androidHome",
+            "zipalignPath"
+        ));
     }
 
     @Test
@@ -469,7 +478,16 @@ public class SignApksBuilderTest {
         SignApksBuilder submitted = (SignApksBuilder) job.getBuildersList().get(0);
 
         assertThat(original.getEntries(), nullValue());
-        testJenkins.assertEqualBeans(original, submitted, "keyStoreId,keyAlias,apksToSign,skipZipalign,archiveUnsignedApks,archiveSignedApks,androidHome,zipalignPath");
+        testJenkins.assertEqualBeans(original, submitted, String.join(",",
+            "keyStoreId",
+            "keyAlias",
+            "apksToSign",
+            "skipZipalign",
+            "archiveUnsignedApks",
+            "archiveSignedApks",
+            "androidHome",
+            "zipalignPath"
+        ));
     }
 
     @Test
