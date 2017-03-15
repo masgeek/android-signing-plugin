@@ -72,43 +72,6 @@ public final class Apk extends AbstractDescribableImpl<Apk> {
         public String getDisplayName() {
             return "APK Signing Entry";
         }
-
-//        @SuppressWarnings("unused")
-//        public ListBoxModel doFillKeyStoreItems(@AncestorInPath ItemGroup<?> parent) {
-//            if (parent == null) {
-//                parent = Jenkins.getInstance();
-//            }
-//            ListBoxModel items = new ListBoxModel();
-//            List<StandardCertificateCredentials> keys = CredentialsProvider.lookupCredentials(
-//                StandardCertificateCredentials.class, parent, ACL.SYSTEM, SignApksBuilder.NO_REQUIREMENTS);
-//            for (StandardCertificateCredentials key : keys) {
-//                items.add(key.getDescription(), key.getId());
-//            }
-//            return items;
-//        }
-//
-//        @SuppressWarnings("unused")
-//        public FormValidation doCheckAlias(@AncestorInPath AbstractProject project, @QueryParameter String value) throws IOException {
-//            return FormValidation.validateRequired(value);
-//        }
-//
-//        @SuppressWarnings("unused")
-//        public FormValidation doCheckApksToSign(@AncestorInPath AbstractProject project, @QueryParameter String value) throws IOException, InterruptedException {
-//            if (project == null) {
-//                return FormValidation.warning(Messages.validation_noProject());
-//            }
-//            FilePath someWorkspace = project.getSomeWorkspace();
-//            if (someWorkspace != null) {
-//                String msg = someWorkspace.validateAntFileMask(value, FilePath.VALIDATE_ANT_FILE_MASK_BOUND);
-//                if (msg != null) {
-//                    return FormValidation.error(msg);
-//                }
-//                return FormValidation.ok();
-//            }
-//            else {
-//                return FormValidation.warning(Messages.validation_noWorkspace());
-//            }
-//        }
     }
 
     public String getApksToSign() {
