@@ -285,7 +285,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         Set<FilePath> matchedApks = new TreeSet<>(Comparator.comparing(FilePath::getRemote));
         String[] globs = getSelectionGlobs();
         for (String glob : globs) {
-            FilePath[] globMatch = workspace.list(glob, builderDir.getName());
+            FilePath[] globMatch = workspace.list(glob, builderDir.getName() + "/**");
             if (globMatch.length == 0) {
                 throw new AbortException("No APKs in workspace matching " + glob);
             }
