@@ -1,0 +1,7 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:local="local">
+  <div>
+    Generate the signed APK in the same directory as the unsigned APK.  For example,
+    <code><i>WORKSPACE</i>/build/outputs/apk/myApp-unsigned.apk</code> -> <code><i>WORKSPACE</i>/build/outputs/apk/myApp-signed.apk</code>.
+  </div>
+</j:jelly>

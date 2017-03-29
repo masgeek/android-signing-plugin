@@ -42,6 +42,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.everyItem;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.hasItems;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.sameInstance;
@@ -430,6 +431,7 @@ public class SignApksBuilderTest {
         original.setKeyStoreId(KEY_STORE_ID);
         original.setKeyAlias(KEY_ALIAS);
         original.setApksToSign("**/*-unsigned.apk");
+        original.setSignedApkMapping(new SignedApkMappingStrategy.UnsignedApkSiblingMapping());
         original.setSkipZipalign(true);
         original.setArchiveSignedApks(!original.getArchiveSignedApks());
         original.setArchiveUnsignedApks(!original.getArchiveUnsignedApks());
@@ -454,6 +456,7 @@ public class SignApksBuilderTest {
             "androidHome",
             "zipalignPath"
         ));
+        assertThat(submitted.getSignedApkMapping(), instanceOf(original.getSignedApkMapping().getClass()));
     }
 
     @Test
@@ -481,6 +484,7 @@ public class SignApksBuilderTest {
             "androidHome",
             "zipalignPath"
         ));
+        assertThat(submitted.getSignedApkMapping(), instanceOf(original.getSignedApkMapping().getClass()));
     }
 
     @Test

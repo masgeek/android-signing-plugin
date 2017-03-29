@@ -11,6 +11,9 @@
     <f:entry field="zipalignPath" title="${%field.zipalignPath}">
       <f:textbox/>
     </f:entry>
+    <f:entry field="signedApkMapping" title="${%field.signedApkMapping}">
+      <f:hetero-radio field="signedApkMapping" descriptors="${descriptor.getPropertyType('signedApkMapping').applicableDescriptors}"/>
+    </f:entry>
   </f:advanced>
 
   <f:entry field="keyStoreId" title="${%field.keyStoreId}">

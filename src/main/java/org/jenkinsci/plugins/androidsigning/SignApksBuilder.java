@@ -101,6 +101,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
     @Deprecated
     public SignApksBuilder(List<Apk> entries) {
+        this();
         if (entries.size() == 1) {
             setPropertiesFromOldSigningEntry(entries.get(0));
         }
@@ -111,6 +112,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
     @DataBoundConstructor
     public SignApksBuilder() {
+        signedApkMapping = new SignedApkMappingStrategy.UnsignedApkSiblingMapping();
     }
 
     protected Object readResolve() {
