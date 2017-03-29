@@ -286,9 +286,6 @@ public class SignApksBuilderTest {
             SignApksBuilder.BUILDER_DIR + "/" + KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest.apk/SignApksBuilderTest.apk",
             SignApksBuilder.BUILDER_DIR + "/" + KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest.apk/SignApksBuilderTest-signed.apk"));
 
-        FilePath[] workApks = build.getWorkspace().list("SignApksBuilder-out/**/*.apk");
-        assertThat(workApks.length, equalTo(4));
-
         //noinspection Duplicates
         artifacts = artifacts.stream().filter(a -> a.getFileName().endsWith("-signed.apk")).collect(Collectors.toList());
 
@@ -335,10 +332,6 @@ public class SignApksBuilderTest {
         assertThat(apkNames, hasItem(KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest.apk/SignApksBuilderTest-signed.apk"));
         assertThat(apkNames, hasItem(KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-unsigned.apk"));
         assertThat(apkNames, hasItem(KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-signed.apk"));
-
-        FilePath[] workApks = build.getWorkspace().list("SignApksBuilder-out/**/*.apk");
-
-        assertThat(workApks.length, equalTo(4));
 
         artifacts = artifacts.stream().filter(a -> a.getFileName().endsWith("-signed.apk")).collect(Collectors.toList());
 

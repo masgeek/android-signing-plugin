@@ -1,6 +1,7 @@
 package org.jenkinsci.plugins.androidsigning.compatibility;
 
 import org.jenkinsci.plugins.androidsigning.SignApksBuilder;
+import org.jenkinsci.plugins.androidsigning.SignedApkMappingStrategy;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -14,6 +15,7 @@ import hudson.tasks.Builder;
 import hudson.util.DescribableList;
 
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -71,5 +73,22 @@ public class SignApksBuilderCompatibility_2_0_8_Test {
 
         builder = (SignApksBuilder) builders.get(2);
         assertThat(builder.getSkipZipalign(), is(false));
+    }
+
+    @Test
+    @LocalData
+    public void usesOldSignedApkMappingFor_v2_0_8_builders() throws Exception {
+
+        FreeStyleProject job = (FreeStyleProject) testJenkins.jenkins.getItem(getClass().getSimpleName());
+        DescribableList<Builder,?> builders = job.getBuildersList();
+
+        SignApksBuilder builder = (SignApksBuilder) builders.get(0);
+        assertThat(builder.getSignedApkMapping(), instanceOf(SignedApkMappingStrategy.UnsignedApkBuilderDirMapping.class));
+
+        builder = (SignApksBuilder) builders.get(1);
+        assertThat(builder.getSignedApkMapping(), instanceOf(SignedApkMappingStrategy.UnsignedApkBuilderDirMapping.class));
+
+        builder = (SignApksBuilder) builders.get(2);
+        assertThat(builder.getSignedApkMapping(), instanceOf(SignedApkMappingStrategy.UnsignedApkBuilderDirMapping.class));
     }
 }

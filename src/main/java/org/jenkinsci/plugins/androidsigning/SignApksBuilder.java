@@ -92,10 +92,10 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
     private String keyStoreId;
     private String keyAlias;
     private String apksToSign;
+    private SignedApkMappingStrategy signedApkMapping;
     private boolean archiveSignedApks = true;
     private boolean archiveUnsignedApks = false;
     private boolean skipZipalign = false;
-    private SignedApkMappingStrategy signedApkMapping = SignedApkMappingStrategy.UnsignedApkBuilderDirMapping.INSTANCE;
 
     transient private List<Apk> entries;
 
@@ -111,6 +111,13 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
     @DataBoundConstructor
     public SignApksBuilder() {
+    }
+
+    protected Object readResolve() {
+        if (signedApkMapping == null) {
+            signedApkMapping = new SignedApkMappingStrategy.UnsignedApkBuilderDirMapping();
+        }
+        return this;
     }
 
     private void setPropertiesFromOldSigningEntry(Apk entry) {
@@ -191,6 +198,15 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
 
     public String getApksToSign() {
         return apksToSign;
+    }
+
+    @DataBoundSetter
+    public void setSignedApkMapping(SignedApkMappingStrategy x) {
+        signedApkMapping = x;
+    }
+
+    public SignedApkMappingStrategy getSignedApkMapping() {
+        return signedApkMapping;
     }
 
     @DataBoundSetter
@@ -292,7 +308,11 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             matchedApks.addAll(Arrays.asList(globMatch));
         }
 
-        String archivePrefix = BUILDER_DIR + "/" + getKeyStoreId() + "/" + getKeyAlias() + "/";
+        final String archivePrefix = BUILDER_DIR + "/" + getKeyStoreId() + "/" + getKeyAlias() + "/";
+
+        if (signedApkMapping == null) {
+            signedApkMapping = new SignedApkMappingStrategy.UnsignedApkSiblingMapping();
+        }
 
         for (FilePath unsignedApk : matchedApks) {
             unsignedApk = unsignedApk.absolutize();
@@ -330,10 +350,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             listener.getLogger().printf("[SignApksBuilder] signing APK %s%n", alignedRelName);
 
             FilePath signedParent = signedApk.getParent();
-            if (signedParent.exists()) {
-                signedParent.deleteContents();
-            }
-            else {
+            if (!signedParent.exists()) {
                 signedParent.mkdirs();
             }
             SignApkCallable signApk = new SignApkCallable(key, certChain, v1SigName, signedApk.getRemote(), listener);

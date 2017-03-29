@@ -1,14 +1,22 @@
 package org.jenkinsci.plugins.androidsigning;
 
+import org.jenkinsci.Symbol;
+import org.kohsuke.stapler.DataBoundConstructor;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nonnull;
+
+import hudson.Extension;
 import hudson.FilePath;
+import hudson.model.AbstractDescribableImpl;
+import hudson.model.Descriptor;
 
 
-interface SignedApkMappingStrategy {
+public abstract class SignedApkMappingStrategy extends AbstractDescribableImpl<SignedApkMappingStrategy> {
 
-    FilePath destinationForUnsignedApk(FilePath unsignedApk, FilePath workspace);
+    abstract FilePath destinationForUnsignedApk(FilePath unsignedApk, FilePath workspace);
 
     /**
      * Return the name of the given APK without the .apk extension and without any -unsigned suffix, if present.
@@ -23,16 +31,50 @@ interface SignedApkMappingStrategy {
         return stripUnsigned.replaceFirst("");
     }
 
-    static class UnsignedApkBuilderDirMapping implements SignedApkMappingStrategy {
+    public static class UnsignedApkBuilderDirMapping extends SignedApkMappingStrategy {
 
-        public static final UnsignedApkBuilderDirMapping INSTANCE = new UnsignedApkBuilderDirMapping();
+        @DataBoundConstructor
+        public UnsignedApkBuilderDirMapping() {
+        }
 
         @Override
         public FilePath destinationForUnsignedApk(FilePath unsignedApk, FilePath workspace) {
             String strippedName = unqualifiedNameOfUnsignedApk(unsignedApk);
             return workspace.child(SignApksBuilder.BUILDER_DIR).child(unsignedApk.getName()).child(strippedName + "-signed.apk");
         }
+
+        @Extension
+        @Symbol("unsignedApkBuilderDir")
+        public static class DescriptorImpl extends Descriptor<SignedApkMappingStrategy> {
+            @Nonnull
+            @Override
+            public String getDisplayName() {
+                return Messages.signedApkMapping_builderDir_displayName();
+            }
+        }
     }
 
+    public static class UnsignedApkSiblingMapping extends SignedApkMappingStrategy {
+
+        @DataBoundConstructor
+        public UnsignedApkSiblingMapping() {
+        }
+
+        @Override
+        public FilePath destinationForUnsignedApk(FilePath unsignedApk, FilePath workspace) {
+            String strippedName = unqualifiedNameOfUnsignedApk(unsignedApk);
+            return unsignedApk.getParent().child(strippedName + "-signed.apk");
+        }
+
+        @Extension
+        @Symbol("unsignedApkSibling")
+        public static class DescriptorImpl extends Descriptor<SignedApkMappingStrategy> {
+            @Nonnull
+            @Override
+            public String getDisplayName() {
+                return Messages.signedApkMapping_unsignedSibling_displayName();
+            }
+        }
+    }
 
 }
