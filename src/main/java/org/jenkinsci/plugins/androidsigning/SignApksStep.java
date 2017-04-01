@@ -168,7 +168,7 @@ public class SignApksStep extends AbstractStepImpl {
             builder.setSignedApkMapping(step.getSignedApkMapping());
             builder.setSkipZipalign(step.getSkipZipalign());
             builder.setArchiveSignedApks(step.getArchiveSignedApks());
-            builder.setArchiveUnsignedApks(step.getArchiveUnsigedApks());
+            builder.setArchiveUnsignedApks(step.getArchiveUnsignedApks());
             builder.setAndroidHome(androidHome);
             builder.setZipalignPath(zipalignPath);
             builder.perform(build, workspace, launcher, listener);
