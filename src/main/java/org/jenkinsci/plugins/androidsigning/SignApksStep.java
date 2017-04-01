@@ -97,7 +97,7 @@ public class SignApksStep extends AbstractStepImpl {
         return archiveSignedApks;
     }
 
-    public boolean getArdhiveUnsigedApks() {
+    public boolean getArchiveUnsignedApks() {
         return archiveUnsignedApks;
     }
 
