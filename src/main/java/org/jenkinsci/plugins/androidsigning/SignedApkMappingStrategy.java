@@ -9,14 +9,21 @@ import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 
 import hudson.Extension;
+import hudson.ExtensionList;
+import hudson.ExtensionPoint;
 import hudson.FilePath;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
+import jenkins.model.Jenkins;
 
 
-public abstract class SignedApkMappingStrategy extends AbstractDescribableImpl<SignedApkMappingStrategy> {
+public abstract class SignedApkMappingStrategy extends AbstractDescribableImpl<SignedApkMappingStrategy> implements ExtensionPoint {
 
-    abstract FilePath destinationForUnsignedApk(FilePath unsignedApk, FilePath workspace);
+    public abstract FilePath destinationForUnsignedApk(FilePath unsignedApk, FilePath workspace);
+
+    public static ExtensionList<SignedApkMappingStrategy> all() {
+        return Jenkins.getActiveInstance().getExtensionList(SignedApkMappingStrategy.class);
+    }
 
     /**
      * Return the name of the given APK without the .apk extension and without any -unsigned suffix, if present.
@@ -25,7 +32,7 @@ public abstract class SignedApkMappingStrategy extends AbstractDescribableImpl<S
      * @param unsignedApk
      * @return
      */
-    static String unqualifiedNameOfUnsignedApk(FilePath unsignedApk) {
+    public static String unqualifiedNameOfUnsignedApk(FilePath unsignedApk) {
         Pattern stripUnsignedPattern = Pattern.compile("(-?unsigned)?$", Pattern.CASE_INSENSITIVE);
         Matcher stripUnsigned = stripUnsignedPattern.matcher(unsignedApk.getBaseName());
         return stripUnsigned.replaceFirst("");
@@ -44,7 +51,7 @@ public abstract class SignedApkMappingStrategy extends AbstractDescribableImpl<S
         }
 
         @Extension
-        @Symbol("unsignedApkBuilderDir")
+        @Symbol("unsignedApkNameDir")
         public static class DescriptorImpl extends Descriptor<SignedApkMappingStrategy> {
             @Nonnull
             @Override

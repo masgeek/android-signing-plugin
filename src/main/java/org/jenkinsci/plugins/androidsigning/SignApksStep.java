@@ -7,6 +7,7 @@ import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousNonBlockingStepExecution;
 import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
+import org.jenkinsci.plugins.workflow.structs.DescribableHelper;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
@@ -29,6 +30,7 @@ public class SignApksStep extends AbstractStepImpl {
     private String keyAlias;
     @CheckForNull
     private String apksToSign;
+    private SignedApkMappingStrategy signedApkMapping;
     private String androidHome;
     private String zipalignPath;
     private boolean skipZipalign = false;
@@ -55,7 +57,14 @@ public class SignApksStep extends AbstractStepImpl {
     }
 
     @DataBoundSetter
-    public void setSkipZipalign(boolean x) { skipZipalign = x; }
+    public void setSignedApkMapping(SignedApkMappingStrategy x) {
+        signedApkMapping = x;
+    }
+
+    @DataBoundSetter
+    public void setSkipZipalign(boolean x) {
+        skipZipalign = x;
+    }
 
     @DataBoundSetter
     public void setArchiveSignedApks(boolean x) {
@@ -87,6 +96,10 @@ public class SignApksStep extends AbstractStepImpl {
 
     public String getApksToSign() {
         return apksToSign;
+    }
+
+    public SignedApkMappingStrategy getSignedApkMapping() {
+        return signedApkMapping;
     }
 
     public boolean getSkipZipalign() {
@@ -152,9 +165,10 @@ public class SignApksStep extends AbstractStepImpl {
             builder.setKeyStoreId(step.getKeyStoreId());
             builder.setKeyAlias(step.getKeyAlias());
             builder.setApksToSign(step.getApksToSign());
+            builder.setSignedApkMapping(step.getSignedApkMapping());
             builder.setSkipZipalign(step.getSkipZipalign());
             builder.setArchiveSignedApks(step.getArchiveSignedApks());
-            builder.setArchiveUnsignedApks(step.getArdhiveUnsigedApks());
+            builder.setArchiveUnsignedApks(step.getArchiveUnsigedApks());
             builder.setAndroidHome(androidHome);
             builder.setZipalignPath(zipalignPath);
             builder.perform(build, workspace, launcher, listener);

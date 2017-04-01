@@ -25,6 +25,7 @@ import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 
 public class SignApksStepTest {
@@ -194,5 +195,52 @@ public class SignApksStepTest {
         testJenkins.buildAndAssertSuccess(job);
 
         assertThat(zipalign.lastProc, nullValue());
+    }
+
+    @Test
+    public void signedApkMappingDefaultsToUnsignedApkSibling() throws Exception {
+        WorkflowJob job = testJenkins.jenkins.createProject(WorkflowJob.class, getClass().getSimpleName());
+        job.setDefinition(new CpsFlowDefinition(String.format(
+            "node('%s') {%n" +
+            "  wrap($class: 'CopyTestWorkspace') {%n" +
+            "    signAndroidApks(" +
+            "      keyStoreId: '%s',%n" +
+            "      keyAlias: '%s',%n" +
+            "      apksToSign: 'SignApksBuilderTest-unsigned.apk',%n" +
+            "      archiveSignedApks: false%n" +
+            "    )%n" +
+            "    archive includes: 'SignApksBuilderTest-signed.apk'%n" +
+            "  }%n" +
+            "}", getClass().getSimpleName(), TestKeyStore.KEY_STORE_ID, TestKeyStore.KEY_ALIAS)));
+
+        WorkflowRun run = testJenkins.buildAndAssertSuccess(job);
+        List<WorkflowRun.Artifact> artifacts = run.getArtifacts();
+
+        assertThat(artifacts.size(), equalTo(1));
+        assertThat(artifacts.get(0).getFileName(), equalTo("SignApksBuilderTest-signed.apk"));
+    }
+
+    @Test
+    public void usesSpecifiedSignedApkMapping() throws Exception {
+        WorkflowJob job = testJenkins.jenkins.createProject(WorkflowJob.class, getClass().getSimpleName());
+        job.setDefinition(new CpsFlowDefinition(String.format(
+            "node('%s') {%n" +
+                "  wrap($class: 'CopyTestWorkspace') {%n" +
+                "    signAndroidApks(" +
+                "      keyStoreId: '%s',%n" +
+                "      keyAlias: '%s',%n" +
+                "      apksToSign: 'SignApksBuilderTest-unsigned.apk',%n" +
+                "      archiveSignedApks: false,%n" +
+                "      signedApkMapping: [$class: 'TestSignedApkMapping']%n" +
+                "    )%n" +
+                "    archive includes: 'TestSignedApkMapping-SignApksBuilderTest-unsigned.apk'%n" +
+                "  }%n" +
+                "}", getClass().getSimpleName(), TestKeyStore.KEY_STORE_ID, TestKeyStore.KEY_ALIAS)));
+
+        WorkflowRun run = testJenkins.buildAndAssertSuccess(job);
+        List<WorkflowRun.Artifact> artifacts = run.getArtifacts();
+
+        assertThat(artifacts.size(), equalTo(1));
+        assertThat(artifacts.get(0).getFileName(), equalTo("TestSignedApkMapping-SignApksBuilderTest-unsigned.apk"));
     }
 }
