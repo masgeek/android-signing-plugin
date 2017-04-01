@@ -126,6 +126,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         setKeyStoreId(entry.getKeyStore());
         setKeyAlias(entry.getAlias());
         setApksToSign(entry.getApksToSign());
+        setSignedApkMapping(new SignedApkMappingStrategy.UnsignedApkBuilderDirMapping());
         setArchiveSignedApks(entry.getArchiveSignedApks());
         setArchiveUnsignedApks(entry.getArchiveUnsignedApks());
     }
