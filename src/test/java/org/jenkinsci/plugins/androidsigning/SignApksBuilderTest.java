@@ -48,6 +48,7 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isEmptyOrNullString;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
@@ -341,6 +342,30 @@ public class SignApksBuilderTest {
         for (Run.Artifact artifact : artifacts) {
             assertThat(buildArtifact(build, artifact), isSigned());
         }
+    }
+
+    @Test
+    public void writesSignedApkToUnsignedApkSibling() throws Exception {
+        SignApksBuilder builder = new SignApksBuilder();
+        builder.setKeyStoreId(KEY_STORE_ID);
+        builder.setKeyAlias(KEY_ALIAS);
+        builder.setApksToSign("**/*-unsigned.apk");
+        builder.setSignedApkMapping(new SignedApkMappingStrategy.UnsignedApkSiblingMapping());
+        builder.setArchiveSignedApks(true);
+        builder.setArchiveUnsignedApks(false);
+
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+        FreeStyleBuild build = testJenkins.buildAndAssertSuccess(job);
+        List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
+
+        assertThat(artifacts.size(), equalTo(2));
+        List<String> artifactNames = artifacts.stream().map(Run.Artifact::getFileName).collect(Collectors.toList());
+        assertThat(artifactNames, everyItem(endsWith("-signed.apk")));
+
+        FilePath workspace = build.getWorkspace();
+        assertThat(workspace.child("SignApksBuilderTest-signed.apk").exists(), is(true));
+        assertThat(workspace.child("standard_gradle_proj/app/build/outputs/apk/app-signed.apk").exists(), is(true));
     }
 
     @Test
