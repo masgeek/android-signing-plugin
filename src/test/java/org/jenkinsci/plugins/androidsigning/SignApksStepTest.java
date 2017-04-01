@@ -74,9 +74,11 @@ public class SignApksStepTest {
         WorkflowRun build = testJenkins.buildAndAssertSuccess(job);
         List<String> artifactNames = build.getArtifacts().stream().map(Run.Artifact::getFileName).collect(Collectors.toList());
 
-        assertThat(artifactNames.size(), equalTo(2));
+        assertThat(artifactNames.size(), equalTo(4));
         assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest-unsigned.apk")));
         assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest-signed.apk")));
+        assertThat(artifactNames, hasItem(endsWith("app-unsigned.apk")));
+        assertThat(artifactNames, hasItem(endsWith("app-signed.apk")));
         assertThat(zipalign.lastProc.cmds().get(0), startsWith(androidHome));
     }
 
@@ -97,8 +99,9 @@ public class SignApksStepTest {
         WorkflowRun build = testJenkins.buildAndAssertSuccess(job);
         List<String> artifactNames = build.getArtifacts().stream().map(Run.Artifact::getFileName).collect(Collectors.toList());
 
-        assertThat(artifactNames.size(), equalTo(1));
+        assertThat(artifactNames.size(), equalTo(2));
         assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest-signed.apk")));
+        assertThat(artifactNames, hasItem(endsWith("app-signed.apk")));
         assertThat(zipalign.lastProc.cmds().get(0), startsWith(androidHome));
     }
 
@@ -125,8 +128,9 @@ public class SignApksStepTest {
         WorkflowRun build = testJenkins.buildAndAssertSuccess(job);
         List<String> artifactNames = build.getArtifacts().stream().map(Run.Artifact::getFileName).collect(Collectors.toList());
 
-        assertThat(artifactNames.size(), equalTo(1));
+        assertThat(artifactNames.size(), equalTo(2));
         assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest-signed.apk")));
+        assertThat(artifactNames, hasItem(endsWith("app-signed.apk")));
         assertThat(zipalign.lastProc.cmds().get(0), startsWith(androidHome));
     }
 
