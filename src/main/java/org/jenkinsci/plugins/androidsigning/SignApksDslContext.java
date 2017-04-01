@@ -26,6 +26,15 @@ public class SignApksDslContext extends ContextExtensionPoint {
             builder.setKeyAlias(x);
         }
 
+        public void signedApkMapping(SignedApkMappingStrategy x) {
+            builder.setSignedApkMapping(x);
+        }
+
+        public void signedApkMapping(Runnable configClosure) {
+            SignedApkMappingContext context = new SignedApkMappingContext(builder);
+            executeInContext(configClosure, context);
+        }
+
         public void skipZipalign(boolean x) {
             builder.setSkipZipalign(x);
         }
@@ -45,6 +54,29 @@ public class SignApksDslContext extends ContextExtensionPoint {
         public void zipalignPath(String x) {
             builder.setZipalignPath(x);
         }
+
+        public SignedApkMappingStrategy.UnsignedApkSiblingMapping unsignedApkSibling() {
+            return new SignedApkMappingStrategy.UnsignedApkSiblingMapping();
+        }
+
+        public SignedApkMappingStrategy.UnsignedApkBuilderDirMapping unsignedApkNameDir() {
+            return new SignedApkMappingStrategy.UnsignedApkBuilderDirMapping();
+        }
+    }
+
+    public static class SignedApkMappingContext implements Context {
+        private final SignApksBuilder builder;
+        SignedApkMappingContext(SignApksBuilder builder) {
+            this.builder = builder;
+        }
+
+        public void unsignedApkSibling() {
+            builder.setSignedApkMapping(new SignedApkMappingStrategy.UnsignedApkSiblingMapping());
+        }
+
+        public void unsignedApkNameDir() {
+            builder.setSignedApkMapping(new SignedApkMappingStrategy.UnsignedApkBuilderDirMapping());
+        }
     }
 
     @DslExtensionMethod(context = StepContext.class)
@@ -54,5 +86,4 @@ public class SignApksDslContext extends ContextExtensionPoint {
         executeInContext(configClosure, new ConfigureContext(builder));
         return builder;
     }
-
 }

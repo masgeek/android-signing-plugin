@@ -7,6 +7,7 @@ import org.junit.Test
 import org.jvnet.hudson.test.JenkinsRule
 
 import static org.hamcrest.CoreMatchers.equalTo
+import static org.hamcrest.CoreMatchers.instanceOf
 import static org.hamcrest.CoreMatchers.nullValue
 import static org.junit.Assert.*
 
@@ -21,6 +22,7 @@ class SignApksDslContextTest {
             """
             job('${this.class.simpleName}-generated') {
                 steps {
+                
                     signAndroidApks '**/*-unsigned.apk', {
                         keyStoreId 'my.keyStore'
                         keyAlias 'myKey'
@@ -29,12 +31,14 @@ class SignApksDslContextTest {
                         androidHome '/fake/android-sdk'
                         skipZipalign true
                     }
+                    
                     signAndroidApks '**/*-other.apk', {
                         keyStoreId 'my.otherKeyStore'
                         keyAlias 'myOtherKey'
                         archiveSignedApks false
                         archiveUnsignedApks false
                         zipalignPath '/fake/android-sdk/zipalign'
+                        signedApkMapping unsignedApkNameDir()
                     }
                 }
             }
@@ -56,6 +60,7 @@ class SignApksDslContextTest {
         assertTrue(signApks.archiveUnsignedApks)
         assertThat(signApks.androidHome, equalTo("/fake/android-sdk"))
         assertThat(signApks.zipalignPath, nullValue())
+        assertThat(signApks.signedApkMapping, instanceOf(SignedApkMappingStrategy.UnsignedApkSiblingMapping))
 
         signApks = job.builders[1]
 
@@ -67,5 +72,6 @@ class SignApksDslContextTest {
         assertFalse(signApks.archiveUnsignedApks)
         assertThat(signApks.androidHome, nullValue())
         assertThat(signApks.zipalignPath, equalTo("/fake/android-sdk/zipalign"))
+        assertThat(signApks.signedApkMapping, instanceOf(org.jenkinsci.plugins.androidsigning.SignedApkMappingStrategy.UnsignedApkBuilderDirMapping.class))
     }
 }
