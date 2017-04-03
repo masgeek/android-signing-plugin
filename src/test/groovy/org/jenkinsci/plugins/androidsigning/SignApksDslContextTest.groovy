@@ -40,6 +40,15 @@ class SignApksDslContextTest {
                         zipalignPath '/fake/android-sdk/zipalign'
                         signedApkMapping unsignedApkNameDir()
                     }
+                    
+                    signAndroidApks '**/*-other.apk', {
+                        keyStoreId 'my.otherKeyStore'
+                        keyAlias 'myOtherKey'
+                        archiveSignedApks false
+                        archiveUnsignedApks false
+                        zipalignPath '/fake/android-sdk/zipalign'
+                        signedApkMapping { unsignedApkSibling() }
+                    }
                 }
             }
             """)
@@ -48,7 +57,7 @@ class SignApksDslContextTest {
         testJenkins.buildAndAssertSuccess(job)
         job = testJenkins.jenkins.getItemByFullName("${this.class.simpleName}-generated", FreeStyleProject)
 
-        assertThat(job.builders.size(), equalTo(2))
+        assertThat(job.builders.size(), equalTo(3))
 
         SignApksBuilder signApks = job.builders[0]
 
@@ -73,5 +82,9 @@ class SignApksDslContextTest {
         assertThat(signApks.androidHome, nullValue())
         assertThat(signApks.zipalignPath, equalTo("/fake/android-sdk/zipalign"))
         assertThat(signApks.signedApkMapping, instanceOf(org.jenkinsci.plugins.androidsigning.SignedApkMappingStrategy.UnsignedApkBuilderDirMapping.class))
+
+        signApks = job.builders[2]
+
+        assertThat(signApks.signedApkMapping, instanceOf(org.jenkinsci.plugins.androidsigning.SignedApkMappingStrategy.UnsignedApkSiblingMapping.class))
     }
 }
