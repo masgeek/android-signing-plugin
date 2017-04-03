@@ -90,15 +90,28 @@ plugin will replace the `-unsigned` component with `-signed` on the output APK.
 Otherwise, the plugin will just insert `-signed` before `.apk` in the unsigned 
 APK name.
 
-Currently, all signed APKs for a single _Sign APKs_ build step go in a workspace
+### Output Signed APKs
+
+As of version 2.2.0, there two choices for the location where a _Sign APKs_ build
+step will write signed APKs.  You can change this behavior by clicking the _Advanced_
+button in the _Sign APKs_ step form group of a Freestyle job, and checking the desired
+radio button in the _Signed APK Destination_ group.  
+* _Output to unsigned APK sibling_ - The new and default choice writes the signed APK to 
+the same directory where the input unsigned APK resides.  This option is useful when you
+want to use your Gradle build script to do something like publish the signed APK, 
+because the signed APK ends up in the same location the Android Gradle plugin would have 
+placed it. 
+* _Output to separate directory_ - The original behavior writes signed APKs to a
 directory named like `SignApksBuilder-out/my-app-unsigned.apk/my-app-signed.apk`,
 where `my-app-unsigned.apk` is a directory named after the unsigned input APK.
 This is to avoid multiple signing steps in a single job overwriting each other's 
 output APKs, and multiple APKs matched within a signing step colliding.  It's 
 clearly not fool-proof, however, so be mindful if you are signing multple APKs
-in a single job and/or signing step.  If you are using the plugin's 
+in a single job and/or signing step.
+
+Regardless of the output option you choose, if you use the plugin's 
 _Archive Signed APKs_ and/or _Archive Unsigned APKs_ option, the plugin 
-places the appropriate artifacts under the `SignApksBuilder-out/my-app-unsigned.apk/`
+archives the artifacts under the `SignApksBuilder-out/<KEY_STORE_ID>/<KEY_ALIAS>/my-app-unsigned.apk/`
 directory in the build's archive.
 
 ### Pipeline
@@ -111,6 +124,9 @@ node {
         keyStoreId: "myApp.signerKeyStore",
         keyAlias: "myTeam",
         apksToSign: "**/*-unsigned.apk"
+        // uncomment the following line to output the signed APK to a separate directory as described above
+        // signedApkMapping: [ $class: UnsignedApkBuilderDirMapping ]
+        // uncomment the following line to output the signed APK as a sibling of the unsigned APK, as described above, or just omit signedApkMapping
         // you can override these within the script if necessary
         // androidHome: env.ANDROID_HOME
         // zipalignPath: env.ANDROID_ZIPALIGN
@@ -145,6 +161,10 @@ freeStyleJob('myApp.seed') {
         signAndroidApks '**/myApp-unsigned.apk', {
             keyStoreId 'myApp.keyStore'
             keyAlias 'myAppKey'
+            // uncomment the following line to output the signed APK to a separate directory as described above
+            // signedApkMapping unsignedApkNameDir()
+            // uncomment the following line to output the signed APK as a sibling of the unsigned APK, as described above, or just omit signedApkMapping
+            // signedApkMapping unsignedApkSibling()
             archiveSignedApks true
             archiveUnsignedApks true
             androidHome '/opt/android-sdk'
@@ -161,7 +181,7 @@ Do not use GitHub issues.
 
 ## Release Notes
 
-See the [Android Signing](https://plugins.jenkins.io/android-signing) page on the Jenkins.io site.
+See the [change log](CHANGELOG.md).
 
 ## License and Copyright
 
