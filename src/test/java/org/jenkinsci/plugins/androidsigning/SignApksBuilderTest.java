@@ -47,6 +47,7 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.hamcrest.CoreMatchers.startsWith;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isEmptyOrNullString;
@@ -339,6 +340,13 @@ public class SignApksBuilderTest {
 
         assertThat(artifacts.size(), equalTo(2));
 
+        Run.Artifact bigger = artifacts.stream().filter(artifact ->
+            artifact.getDisplayPath().endsWith("SignApksBuilderTest.apk/SignApksBuilderTest-signed.apk")).findFirst().get();
+        Run.Artifact smaller = artifacts.stream().filter(artifact ->
+            artifact.getDisplayPath().endsWith("SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-signed.apk")).findFirst().get();
+
+        assertThat(bigger.getFileSize(), greaterThan(smaller.getFileSize()));
+
         for (Run.Artifact artifact : artifacts) {
             assertThat(buildArtifact(build, artifact), isSigned());
         }
@@ -349,7 +357,7 @@ public class SignApksBuilderTest {
         SignApksBuilder builder = new SignApksBuilder();
         builder.setKeyStoreId(KEY_STORE_ID);
         builder.setKeyAlias(KEY_ALIAS);
-        builder.setApksToSign("**/*-unsigned.apk");
+        builder.setApksToSign("SignApksBuilderTest-unsigned.apk, standard_gradle_proj/**/*-release-unsigned.apk");
         builder.setSignedApkMapping(new SignedApkMappingStrategy.UnsignedApkSiblingMapping());
         builder.setArchiveSignedApks(true);
         builder.setArchiveUnsignedApks(false);
@@ -365,7 +373,7 @@ public class SignApksBuilderTest {
 
         FilePath workspace = build.getWorkspace();
         assertThat(workspace.child("SignApksBuilderTest-signed.apk").exists(), is(true));
-        assertThat(workspace.child("standard_gradle_proj/app/build/outputs/apk/app-signed.apk").exists(), is(true));
+        assertThat(workspace.child("standard_gradle_proj/app/build/outputs/apk/app-release-signed.apk").exists(), is(true));
     }
 
     @Test
