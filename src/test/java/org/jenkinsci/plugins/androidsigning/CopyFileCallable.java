@@ -8,9 +8,7 @@ import java.nio.file.StandardOpenOption;
 import hudson.remoting.VirtualChannel;
 import jenkins.MasterToSlaveFileCallable;
 
-/**
- * Created by stjohnr on 2/22/17.
- */
+
 class CopyFileCallable extends MasterToSlaveFileCallable<Void> {
 
     private static final long serialVersionUID = 1L;
@@ -26,7 +24,7 @@ class CopyFileCallable extends MasterToSlaveFileCallable<Void> {
         long fileSize = f.length();
         FileChannel inChannel = FileChannel.open(f.toPath(), StandardOpenOption.READ);
         FileChannel outChannel = FileChannel.open(new File(destPath).toPath(),
-            StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE, StandardOpenOption.SYNC);
+            StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.SYNC);
         inChannel.transferTo(0, fileSize, outChannel);
         outChannel.close();
         inChannel.close();

@@ -264,9 +264,9 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         }
 
         FilePath builderDir = workspace.child(BUILDER_DIR);
-        if (!builderDir.exists()) {
-            builderDir.mkdirs();
-        }
+        FilePath zipalignDir = builderDir.child("zipalign");
+        zipalignDir.mkdirs();
+
         ZipalignTool zipalign = new ZipalignTool(env, workspace, listener.getLogger(), androidHome, zipalignPath);
         Map<String,String> apksToArchive = new LinkedHashMap<>();
 
@@ -320,7 +320,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         for (FilePath unsignedApk : matchedApks) {
             unsignedApk = unsignedApk.absolutize();
 
-            FilePath alignedApk = builderDir.createTempDir(unsignedApk.getName() + "-", null).child("aligned-" + unsignedApk.getName());
+            FilePath alignedApk = zipalignDir.createTempFile("aligned-" + unsignedApk.getBaseName() + "-", ".apk");
             FilePath signedApk = signedApkMapping.destinationForUnsignedApk(unsignedApk, workspace);
 
             if (skipZipalign) {
