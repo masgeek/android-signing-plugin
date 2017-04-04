@@ -26,6 +26,8 @@
       }
   }
   ```
+* Updated Pipeline/Workflow dependency to 2.0
+* Updated Android apksig dependency to 2.3.0 release
 
 ## 2.1.0 - 1 Mar 2017
 This release includes some significant changes:
