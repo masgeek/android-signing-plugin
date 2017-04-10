@@ -100,7 +100,9 @@ radio button in the _Signed APK Destination_ group.
 the same directory where the input unsigned APK resides.  This option is useful when you
 want to use your Gradle build script to do something like publish the signed APK, 
 because the signed APK ends up in the same location the Android Gradle plugin would have 
-placed it. 
+placed it.  The signed APK file name will only have a `-signed` component if the input
+unsigned APK has the standard `-unsigned` component, as the Android Gradle plugin's signed
+APKs do have a `-signed` component.
 * _Output to separate directory_ - The original behavior writes signed APKs to a
 directory named like `SignApksBuilder-out/my-app-unsigned.apk/my-app-signed.apk`,
 where `my-app-unsigned.apk` is a directory named after the unsigned input APK.
