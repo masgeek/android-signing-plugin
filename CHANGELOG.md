@@ -1,7 +1,7 @@
 # Jenkins Android Signing Plugin
 # Version History
 
-## 2.1.1 - 10 April 2016
+## 2.2.1 - 10 April 2016
 * Omit the `-signed` component of the output signed APKs for the _Output to unsigned APK sibling_/`UnsignedApkSiblingMapping` 
   option when the unsigned APK includes the `-unsigned` component.  This is to align with the intention of the change in the 
   previous release to write signed APKs the same way the Android Gradle plugin does.  Apologies for the excessive changes.
