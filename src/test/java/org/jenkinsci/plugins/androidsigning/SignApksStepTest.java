@@ -76,9 +76,9 @@ public class SignApksStepTest {
 
         assertThat(artifactNames.size(), equalTo(4));
         assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest-unsigned.apk")));
-        assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest-signed.apk")));
+        assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest.apk")));
         assertThat(artifactNames, hasItem(endsWith("app-release-unsigned.apk")));
-        assertThat(artifactNames, hasItem(endsWith("app-release-signed.apk")));
+        assertThat(artifactNames, hasItem(endsWith("app-release.apk")));
         assertThat(zipalign.lastProc.cmds().get(0), startsWith(androidHome));
     }
 
@@ -100,8 +100,8 @@ public class SignApksStepTest {
         List<String> artifactNames = build.getArtifacts().stream().map(Run.Artifact::getFileName).collect(Collectors.toList());
 
         assertThat(artifactNames.size(), equalTo(2));
-        assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest-signed.apk")));
-        assertThat(artifactNames, hasItem(endsWith("app-release-signed.apk")));
+        assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest.apk")));
+        assertThat(artifactNames, hasItem(endsWith("app-release.apk")));
         assertThat(zipalign.lastProc.cmds().get(0), startsWith(androidHome));
     }
 
@@ -129,9 +129,9 @@ public class SignApksStepTest {
         List<String> artifactNames = build.getArtifacts().stream().map(Run.Artifact::getFileName).collect(Collectors.toList());
 
         assertThat(artifactNames.size(), equalTo(3));
-        assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest-signed.apk")));
-        assertThat(artifactNames, hasItem(endsWith("app-release-signed.apk")));
-        assertThat(artifactNames, hasItem(endsWith("app-debug-signed.apk")));
+        assertThat(artifactNames, hasItem(endsWith("SignApksBuilderTest.apk")));
+        assertThat(artifactNames, hasItem(endsWith("app-release.apk")));
+        assertThat(artifactNames, hasItem(endsWith("app-debug.apk")));
         assertThat(zipalign.lastProc.cmds().get(0), startsWith(androidHome));
     }
 
@@ -214,7 +214,7 @@ public class SignApksStepTest {
             "      apksToSign: 'SignApksBuilderTest-unsigned.apk',%n" +
             "      archiveSignedApks: false%n" +
             "    )%n" +
-            "    archive includes: 'SignApksBuilderTest-signed.apk'%n" +
+            "    archive includes: 'SignApksBuilderTest.apk'%n" +
             "  }%n" +
             "}", getClass().getSimpleName(), TestKeyStore.KEY_STORE_ID, TestKeyStore.KEY_ALIAS)));
 
@@ -222,7 +222,7 @@ public class SignApksStepTest {
         List<WorkflowRun.Artifact> artifacts = run.getArtifacts();
 
         assertThat(artifacts.size(), equalTo(1));
-        assertThat(artifacts.get(0).getFileName(), equalTo("SignApksBuilderTest-signed.apk"));
+        assertThat(artifacts.get(0).getFileName(), equalTo("SignApksBuilderTest.apk"));
     }
 
     @Test

@@ -1,5 +1,7 @@
 package org.jenkinsci.plugins.androidsigning;
 
+import com.sun.org.apache.xpath.internal.operations.Bool;
+
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 
@@ -70,7 +72,10 @@ public abstract class SignedApkMappingStrategy extends AbstractDescribableImpl<S
         @Override
         public FilePath destinationForUnsignedApk(FilePath unsignedApk, FilePath workspace) {
             String strippedName = unqualifiedNameOfUnsignedApk(unsignedApk);
-            return unsignedApk.getParent().child(strippedName + "-signed.apk");
+            if (!unsignedApk.getBaseName().endsWith("-unsigned")) {
+                strippedName += "-signed";
+            }
+            return unsignedApk.getParent().child(strippedName + ".apk");
         }
 
         @Extension

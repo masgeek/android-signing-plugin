@@ -268,38 +268,6 @@ public class SignApksBuilderTest {
     }
 
     @Test
-    public void signsMultipleApksThatWillHaveConflictingSignedFileNames() throws Exception {
-        SignApksBuilder builder = new SignApksBuilder();
-        builder.setKeyStoreId(KEY_STORE_ID);
-        builder.setKeyAlias(KEY_ALIAS);
-        builder.setApksToSign("SignApksBuilderTest.apk, SignApksBuilderTest-unsigned.apk");
-        builder.setArchiveSignedApks(true);
-        builder.setArchiveUnsignedApks(true);
-        FreeStyleProject job = createSignApkJob();
-        job.getBuildersList().add(builder);
-        FreeStyleBuild build = testJenkins.buildAndAssertSuccess(job);
-        List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
-
-        assertThat(artifacts.size(), equalTo(4));
-
-        List<String> relPaths = artifacts.stream().map(artifact -> artifact.relativePath).collect(Collectors.toList());
-        assertThat(relPaths, hasItems(
-            SignApksBuilder.BUILDER_DIR + "/" + KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-signed.apk",
-            SignApksBuilder.BUILDER_DIR + "/" + KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-unsigned.apk",
-            SignApksBuilder.BUILDER_DIR + "/" + KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest.apk/SignApksBuilderTest.apk",
-            SignApksBuilder.BUILDER_DIR + "/" + KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest.apk/SignApksBuilderTest-signed.apk"));
-
-        //noinspection Duplicates
-        artifacts = artifacts.stream().filter(a -> a.getFileName().endsWith("-signed.apk")).collect(Collectors.toList());
-
-        assertThat(artifacts.size(), equalTo(2));
-
-        for (Run.Artifact artifact : artifacts) {
-            assertThat(buildArtifact(build, artifact), isSigned());
-        }
-    }
-
-    @Test
     public void multipleBuildersDoNotOverwriteArtifacts() throws Exception {
         SignApksBuilder builder1 = new SignApksBuilder();
         builder1.setKeyStoreId(KEY_STORE_ID);
@@ -334,22 +302,16 @@ public class SignApksBuilderTest {
         assertThat(apkNames, hasItem(KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest.apk/SignApksBuilderTest.apk"));
         assertThat(apkNames, hasItem(KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest.apk/SignApksBuilderTest-signed.apk"));
         assertThat(apkNames, hasItem(KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-unsigned.apk"));
-        assertThat(apkNames, hasItem(KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-signed.apk"));
-
-        artifacts = artifacts.stream().filter(a -> a.getFileName().endsWith("-signed.apk")).collect(Collectors.toList());
-
-        assertThat(artifacts.size(), equalTo(2));
+        assertThat(apkNames, hasItem(KEY_STORE_ID + "/" + KEY_ALIAS + "/SignApksBuilderTest-unsigned.apk/SignApksBuilderTest.apk"));
 
         Run.Artifact bigger = artifacts.stream().filter(artifact ->
-            artifact.getDisplayPath().endsWith("SignApksBuilderTest.apk/SignApksBuilderTest-signed.apk")).findFirst().get();
+            artifact.relativePath.endsWith("SignApksBuilderTest.apk/SignApksBuilderTest-signed.apk")).findFirst().get();
         Run.Artifact smaller = artifacts.stream().filter(artifact ->
-            artifact.getDisplayPath().endsWith("SignApksBuilderTest-unsigned.apk/SignApksBuilderTest-signed.apk")).findFirst().get();
+            artifact.relativePath.endsWith("SignApksBuilderTest-unsigned.apk/SignApksBuilderTest.apk")).findFirst().get();
 
         assertThat(bigger.getFileSize(), greaterThan(smaller.getFileSize()));
-
-        for (Run.Artifact artifact : artifacts) {
-            assertThat(buildArtifact(build, artifact), isSigned());
-        }
+        assertThat(buildArtifact(build, bigger), isSigned());
+        assertThat(buildArtifact(build, smaller), isSigned());
     }
 
     @Test
@@ -369,11 +331,11 @@ public class SignApksBuilderTest {
 
         assertThat(artifacts.size(), equalTo(2));
         List<String> artifactNames = artifacts.stream().map(Run.Artifact::getFileName).collect(Collectors.toList());
-        assertThat(artifactNames, everyItem(endsWith("-signed.apk")));
+        assertThat(artifactNames, everyItem(not(endsWith("-signed.apk"))));
 
         FilePath workspace = build.getWorkspace();
-        assertThat(workspace.child("SignApksBuilderTest-signed.apk").exists(), is(true));
-        assertThat(workspace.child("standard_gradle_proj/app/build/outputs/apk/app-release-signed.apk").exists(), is(true));
+        assertThat(workspace.child("SignApksBuilderTest.apk").exists(), is(true));
+        assertThat(workspace.child("standard_gradle_proj/app/build/outputs/apk/app-release.apk").exists(), is(true));
     }
 
     @Test
@@ -391,8 +353,6 @@ public class SignApksBuilderTest {
         List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
 
         assertThat(artifacts.size(), equalTo(3));
-        List<String> artifactNames = artifacts.stream().map(Run.Artifact::getFileName).collect(Collectors.toList());
-        assertThat(artifactNames, everyItem(endsWith("-signed.apk")));
     }
 
     @Test
