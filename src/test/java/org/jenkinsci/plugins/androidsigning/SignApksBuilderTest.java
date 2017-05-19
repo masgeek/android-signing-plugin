@@ -20,6 +20,7 @@ import org.jvnet.hudson.test.WithoutJenkins;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.security.KeyStoreException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,14 +30,20 @@ import java.util.stream.Collectors;
 
 import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.Launcher;
+import hudson.model.Build;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Run;
+import hudson.model.TaskListener;
 import hudson.security.ACL;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
+import hudson.util.FormValidation;
+import jenkins.tasks.SimpleBuildWrapper;
 import jenkins.util.VirtualFile;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.endsWith;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.everyItem;
@@ -562,6 +569,37 @@ public class SignApksBuilderTest {
         entries.add(new Apk(KEY_STORE_ID, KEY_ALIAS, "ignore_me_1/**"));
         entries.add(new Apk(KEY_STORE_ID, KEY_ALIAS, "ignore_me_2/**"));
         SignApksBuilder builder = new SignApksBuilder(entries);
+    }
+
+    @Test
+    public void validatingApksToSignHandlesGlobMatchUpperBoundGracefully() throws Exception {
+
+        FreeStyleProject job = createSignApkJob();
+
+        SignApksBuilder original = new SignApksBuilder();
+        original.setKeyStoreId(KEY_STORE_ID);
+        original.setKeyAlias(KEY_ALIAS);
+        original.setApksToSign("**/*-unsigned.apk");
+        original.setArchiveSignedApks(!original.getArchiveSignedApks());
+        original.setArchiveUnsignedApks(!original.getArchiveUnsignedApks());
+        original.setAndroidHome(androidHome.getRemote());
+        job.getBuildersList().add(original);
+
+        Build build = testJenkins.buildAndAssertSuccess(job);
+
+        FilePath workspace = build.getWorkspace();
+        for (int i = 0; i < 10001; i++) {
+            workspace.createTempFile(String.format("%06d-", i), ".tmp");
+        }
+
+        SignApksBuilder.SignApksDescriptor desc = (SignApksBuilder.SignApksDescriptor) testJenkins.jenkins.getDescriptor(SignApksBuilder.class);
+        String jobUrl = job.getUrl();
+        String checkUrl = jobUrl + "/" + desc.getDescriptorUrl() + "/checkApksToSign?value=" + URLEncoder.encode("**/*-unsigned.apk", "utf-8");
+        HtmlPage page = testJenkins.createWebClient().goTo(checkUrl);
+        String pageText = page.asText();
+
+        assertThat(pageText, not(containsString(InterruptedException.class.getSimpleName())));
+        assertThat(pageText, containsString(Messages.validation_globSearchLimitReached(FilePath.VALIDATE_ANT_FILE_MASK_BOUND)));
     }
 
 }

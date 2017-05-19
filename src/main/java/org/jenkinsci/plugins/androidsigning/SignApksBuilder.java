@@ -430,13 +430,19 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         }
 
         @SuppressWarnings("unused")
-        public FormValidation doCheckApksToSign(@AncestorInPath AbstractProject project, @QueryParameter String value) throws IOException, InterruptedException {
+        public FormValidation doCheckApksToSign(@AncestorInPath AbstractProject project, @QueryParameter String value) throws IOException {
             if (project == null) {
                 return FormValidation.warning(Messages.validation_noProject());
             }
             FilePath someWorkspace = project.getSomeWorkspace();
             if (someWorkspace != null) {
-                String msg = someWorkspace.validateAntFileMask(value, FilePath.VALIDATE_ANT_FILE_MASK_BOUND);
+                String msg = null;
+                try {
+                    msg = someWorkspace.validateAntFileMask(value, FilePath.VALIDATE_ANT_FILE_MASK_BOUND);
+                }
+                catch (InterruptedException e) {
+                    msg = Messages.validation_globSearchLimitReached(FilePath.VALIDATE_ANT_FILE_MASK_BOUND);
+                }
                 if (msg != null) {
                     return FormValidation.error(msg);
                 }
