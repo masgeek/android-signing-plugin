@@ -1,6 +1,11 @@
 # Jenkins Android Signing Plugin
 # Version History
 
+## 2.2.2 - 19 May 2017
+Minor bug fix ([JENKINS-44299](https://issues.jenkins-ci.org/browse/JENKINS-44299))
+* The _Sign Android APKs_ build step form validation now catches the `InterruptedException` that occurs in the above issue,
+  as well as validates all globs in a comma-separated multi-value of the _APKs to Sign_ form field. 
+
 ## 2.2.1 - 10 April 2016
 * Omit the `-signed` component of the output signed APKs for the _Output to unsigned APK sibling_/`UnsignedApkSiblingMapping` 
   option when the unsigned APK includes the `-unsigned` component.  This is to align with the intention of the change in the 
