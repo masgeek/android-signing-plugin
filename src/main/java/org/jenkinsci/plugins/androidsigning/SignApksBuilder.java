@@ -87,6 +87,18 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         return signers;
     }
 
+    private static String[] getSelectionGlobs(String apksToSignValue) {
+        String[] globs = apksToSignValue.split("\\s*,\\s*");
+        List<String> cleanGlobs = new ArrayList<>(globs.length);
+        for (String glob : globs) {
+            glob = glob.trim();
+            if (glob.length() > 0) {
+                cleanGlobs.add(glob);
+            }
+        }
+        return cleanGlobs.toArray(new String[cleanGlobs.size()]);
+    }
+
     private String androidHome;
     private String zipalignPath;
     private String keyStoreId;
@@ -135,18 +147,6 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         // TODO: does this work in pipeline?
         Result result = build.getResult();
         return result != null && result.isWorseThan(Result.UNSTABLE);
-    }
-
-    private String[] getSelectionGlobs() {
-        String[] globs = getApksToSign().split("\\s*,\\s*");
-        List<String> cleanGlobs = new ArrayList<>(globs.length);
-        for (String glob : globs) {
-            glob = glob.trim();
-            if (glob.length() > 0) {
-                cleanGlobs.add(glob);
-            }
-        }
-        return cleanGlobs.toArray(new String[cleanGlobs.size()]);
     }
 
     boolean isMigrated() {
@@ -302,7 +302,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         }
 
         Set<FilePath> matchedApks = new TreeSet<>(Comparator.comparing(FilePath::getRemote));
-        String[] globs = getSelectionGlobs();
+        String[] globs = getSelectionGlobs(getApksToSign());
         for (String glob : globs) {
             FilePath[] globMatch = workspace.list(glob, builderDir.getName() + "/**");
             if (globMatch.length == 0) {
@@ -435,8 +435,13 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                 return FormValidation.warning(Messages.validation_noProject());
             }
             FilePath someWorkspace = project.getSomeWorkspace();
-            if (someWorkspace != null) {
-                String msg = null;
+            if (someWorkspace == null) {
+                return FormValidation.warning(Messages.validation_noWorkspace());
+            }
+
+            String[] globs = getSelectionGlobs(value);
+            String msg;
+            for (String glob : globs) {
                 try {
                     msg = someWorkspace.validateAntFileMask(value, FilePath.VALIDATE_ANT_FILE_MASK_BOUND);
                 }
@@ -444,13 +449,10 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
                     msg = Messages.validation_globSearchLimitReached(FilePath.VALIDATE_ANT_FILE_MASK_BOUND);
                 }
                 if (msg != null) {
-                    return FormValidation.error(msg);
+                    return FormValidation.warning(msg);
                 }
-                return FormValidation.ok();
             }
-            else {
-                return FormValidation.warning(Messages.validation_noWorkspace());
-            }
+            return FormValidation.ok();
         }
 
     }

@@ -572,18 +572,52 @@ public class SignApksBuilderTest {
     }
 
     @Test
+    public void validatesAllApksToSignGlobs() throws Exception {
+
+        FreeStyleProject job = createSignApkJob();
+
+        SignApksBuilder builder = new SignApksBuilder();
+        builder.setKeyStoreId(KEY_STORE_ID);
+        builder.setKeyAlias(KEY_ALIAS);
+        builder.setApksToSign("**/*-unsigned.apk");
+        builder.setArchiveSignedApks(!builder.getArchiveSignedApks());
+        builder.setArchiveUnsignedApks(!builder.getArchiveUnsignedApks());
+        builder.setAndroidHome(androidHome.getRemote());
+        job.getBuildersList().add(builder);
+
+        Build build = testJenkins.buildAndAssertSuccess(job);
+        SignApksBuilder.SignApksDescriptor desc = (SignApksBuilder.SignApksDescriptor) testJenkins.jenkins.getDescriptor(SignApksBuilder.class);
+        String jobUrl = job.getUrl();
+        String checkUrl = jobUrl + "/" + desc.getDescriptorUrl() + "/checkApksToSign?value=" + URLEncoder.encode("**/*-unsigned.apk, no_match-*.apk", "utf-8");
+        JenkinsRule.WebClient browser = testJenkins.createWebClient();
+        String pageText = browser.goTo(checkUrl).asText();
+
+        FilePath workspace = build.getWorkspace();
+        String validationMessage = workspace.validateAntFileMask("no_match-*.apk", FilePath.VALIDATE_ANT_FILE_MASK_BOUND);
+        assertThat(pageText, containsString(validationMessage));
+
+        workspace.deleteContents();
+        workspace.createTempFile("no_match-", ".apk");
+
+        pageText = browser.goTo(checkUrl).asText();
+
+        validationMessage = workspace.validateAntFileMask("**/*-unsigned.apk", FilePath.VALIDATE_ANT_FILE_MASK_BOUND);
+        assertThat(pageText, containsString(validationMessage));
+    }
+
+    @Test
     public void validatingApksToSignHandlesGlobMatchUpperBoundGracefully() throws Exception {
 
         FreeStyleProject job = createSignApkJob();
 
-        SignApksBuilder original = new SignApksBuilder();
-        original.setKeyStoreId(KEY_STORE_ID);
-        original.setKeyAlias(KEY_ALIAS);
-        original.setApksToSign("**/*-unsigned.apk");
-        original.setArchiveSignedApks(!original.getArchiveSignedApks());
-        original.setArchiveUnsignedApks(!original.getArchiveUnsignedApks());
-        original.setAndroidHome(androidHome.getRemote());
-        job.getBuildersList().add(original);
+        SignApksBuilder builder = new SignApksBuilder();
+        builder.setKeyStoreId(KEY_STORE_ID);
+        builder.setKeyAlias(KEY_ALIAS);
+        builder.setApksToSign("**/*-unsigned.apk");
+        builder.setArchiveSignedApks(!builder.getArchiveSignedApks());
+        builder.setArchiveUnsignedApks(!builder.getArchiveUnsignedApks());
+        builder.setAndroidHome(androidHome.getRemote());
+        job.getBuildersList().add(builder);
 
         Build build = testJenkins.buildAndAssertSuccess(job);
 
