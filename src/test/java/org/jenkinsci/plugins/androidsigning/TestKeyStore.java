@@ -7,7 +7,6 @@ import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.impl.CertificateCredentialsImpl;
 
-import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -25,15 +24,17 @@ public class TestKeyStore implements TestRule {
 
     public final JenkinsRule testJenkins;
     public final String credentialsId;
+    public final String description;
     public StandardCertificateCredentials credentials;
 
     TestKeyStore(JenkinsRule testJenkins) {
-        this(testJenkins, KEY_STORE_ID);
+        this(testJenkins, KEY_STORE_ID, "Main Test Key Store");
     }
 
-    TestKeyStore(JenkinsRule testJenkins, String credentialsId) {
+    TestKeyStore(JenkinsRule testJenkins, String credentialsId, String description) {
         this.testJenkins = testJenkins;
         this.credentialsId = credentialsId;
+        this.description = description;
     }
 
     @Override
@@ -62,7 +63,7 @@ public class TestKeyStore implements TestRule {
             keyStoreIn.read(keyStoreBytes);
             String keyStore = new String(Base64.getEncoder().encode(keyStoreBytes), "utf-8");
             credentials = new CertificateCredentialsImpl(
-                CredentialsScope.GLOBAL, credentialsId, "", SignApksBuilderTest.class.getSimpleName(),
+                CredentialsScope.GLOBAL, credentialsId, description, SignApksBuilderTest.class.getSimpleName(),
                 new CertificateCredentialsImpl.UploadedKeyStoreSource(keyStore));
             CredentialsStore store = CredentialsProvider.lookupStores(testJenkins.jenkins).iterator().next();
             store.addCredentials(Domain.global(), credentials);

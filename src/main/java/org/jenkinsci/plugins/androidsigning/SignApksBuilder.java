@@ -419,7 +419,12 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             List<StandardCertificateCredentials> keys = CredentialsProvider.lookupCredentials(
                 StandardCertificateCredentials.class, parent, ACL.SYSTEM, SignApksBuilder.NO_REQUIREMENTS);
             for (StandardCertificateCredentials key : keys) {
-                items.add(key.getDescription(), key.getId());
+                String id = key.getId();
+                String label = key.getDescription();
+                if (StringUtils.isEmpty(label)) {
+                    label = id;
+                }
+                items.add(label, id);
             }
             return items;
         }

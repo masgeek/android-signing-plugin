@@ -30,17 +30,13 @@ import java.util.stream.Collectors;
 
 import hudson.EnvVars;
 import hudson.FilePath;
-import hudson.Launcher;
 import hudson.model.Build;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Run;
-import hudson.model.TaskListener;
 import hudson.security.ACL;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
-import hudson.util.FormValidation;
-import jenkins.tasks.SimpleBuildWrapper;
 import jenkins.util.VirtualFile;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -517,7 +513,7 @@ public class SignApksBuilderTest {
 
     @Test
     public void savesTheKeyStoreIdWithMultipleKeyStoresPresent() throws Exception {
-        TestKeyStore otherKey = new TestKeyStore(testJenkins, "otherKey");
+        TestKeyStore otherKey = new TestKeyStore(testJenkins, "otherKey", null);
         otherKey.addCredentials();
 
         SignApksBuilder original = new SignApksBuilder();
@@ -634,6 +630,32 @@ public class SignApksBuilderTest {
 
         assertThat(pageText, not(containsString(InterruptedException.class.getSimpleName())));
         assertThat(pageText, containsString(Messages.validation_globSearchLimitReached(FilePath.VALIDATE_ANT_FILE_MASK_BOUND)));
+    }
+
+    @Test
+    public void usesKeyStoreIdIfDescriptionIsNotPresent() throws Exception {
+
+        TestKeyStore otherKey = new TestKeyStore(testJenkins, "otherKey", null);
+        otherKey.addCredentials();
+
+        SignApksBuilder original = new SignApksBuilder();
+        FreeStyleProject job = testJenkins.createFreeStyleProject();
+        job.getBuildersList().add(original);
+
+        // have to do this because Descriptor.calcFillSettings() fails outside the context of a Stapler web request
+        JenkinsRule.WebClient browser = testJenkins.createWebClient();
+        HtmlPage configPage = browser.getPage(job, "configure");
+        HtmlForm form = configPage.getFormByName("config");
+        HtmlSelect keyStoreSelect = form.getSelectByName("_.keyStoreId");
+        String fillUrl = keyStoreSelect.getAttribute("fillUrl");
+
+        assertThat(fillUrl, not(isEmptyOrNullString()));
+
+        HtmlOption option1 = keyStoreSelect.getOptionByValue(KEY_STORE_ID);
+        HtmlOption option2 = keyStoreSelect.getOptionByValue(otherKey.credentialsId);
+
+        assertThat(option1.getText(), equalTo("Main Test Key Store"));
+        assertThat(option2.getText(), equalTo(otherKey.credentialsId));
     }
 
 }
