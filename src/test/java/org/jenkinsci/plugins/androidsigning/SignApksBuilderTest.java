@@ -34,6 +34,7 @@ import hudson.model.Build;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
+import hudson.model.Result;
 import hudson.model.Run;
 import hudson.security.ACL;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
@@ -56,10 +57,13 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isEmptyOrNullString;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
+import static org.jenkinsci.plugins.androidsigning.ApkArtifactIsSignedMatcher.isSignedWith;
 import static org.jenkinsci.plugins.androidsigning.TestKeyStore.KEY_ALIAS;
 import static org.jenkinsci.plugins.androidsigning.TestKeyStore.KEY_STORE_ID;
+import static org.jenkinsci.plugins.androidsigning.TestKeyStore.KEY_STORE_RESOURCE;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 
 public class SignApksBuilderTest {
@@ -69,7 +73,7 @@ public class SignApksBuilderTest {
     }
 
     private ApkArtifactIsSignedMatcher isSigned() throws KeyStoreException {
-        return ApkArtifactIsSignedMatcher.isSignedWith(KEY_STORE_ID, KEY_ALIAS);
+        return isSignedWith(KEY_STORE_ID, KEY_ALIAS);
     }
 
     private FilePath androidHome = null;
@@ -513,7 +517,7 @@ public class SignApksBuilderTest {
 
     @Test
     public void savesTheKeyStoreIdWithMultipleKeyStoresPresent() throws Exception {
-        TestKeyStore otherKey = new TestKeyStore(testJenkins, "otherKey", null);
+        TestKeyStore otherKey = new TestKeyStore(testJenkins, KEY_STORE_RESOURCE, "otherKey", null, getClass().getSimpleName());
         otherKey.addCredentials();
 
         SignApksBuilder original = new SignApksBuilder();
@@ -635,7 +639,7 @@ public class SignApksBuilderTest {
     @Test
     public void usesKeyStoreIdIfDescriptionIsNotPresent() throws Exception {
 
-        TestKeyStore otherKey = new TestKeyStore(testJenkins, "otherKey", null);
+        TestKeyStore otherKey = new TestKeyStore(testJenkins, KEY_STORE_RESOURCE, "otherKey", null, getClass().getSimpleName());
         otherKey.addCredentials();
 
         SignApksBuilder original = new SignApksBuilder();
@@ -656,6 +660,56 @@ public class SignApksBuilderTest {
 
         assertThat(option1.getText(), equalTo("Main Test Key Store"));
         assertThat(option2.getText(), equalTo(otherKey.credentialsId));
+    }
+
+    /**
+     * Using either a null password or empty password does not work because
+     * the Credentials Plugin's CertificateCredentialsImpl uses hudson.Util.fixeEmpty()
+     * on the password, which turns empty strings to null.  The plugin then calls
+     * KeyStore.load() with a null password which results in a NullPointerException
+     * when calling KeyStore.getEntry(alias).  See also ReadingKeyStoresTest.java.
+     */
+    @Test
+    public void passwordlessKeyStoreDoesNotWork() throws Exception {
+
+        TestKeyStore blankPassword = new TestKeyStore(testJenkins, "/SignApksBuilderTest-exposed.p12", "exposed", null, "");
+        blankPassword.addCredentials();
+
+        SignApksBuilder builder = new SignApksBuilder();
+        builder.setKeyStoreId("exposed");
+        builder.setKeyAlias("SignApksBuilderTest-exposed");
+        builder.setApksToSign("*-unsigned.apk");
+
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+
+        FreeStyleBuild build = testJenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0));
+        testJenkins.assertLogContains(SigningComponents.NullKeyStorePasswordException.class.getName(), build);
+
+        blankPassword.removeCredentials();
+    }
+
+    @Test
+    public void usesSingletonKeyEntryWhenAliasIsNull() throws Exception {
+
+        SignApksBuilder builder = new SignApksBuilder();
+        builder.setKeyStoreId(KEY_STORE_ID);
+        builder.setKeyAlias(null);
+        builder.setApksToSign("*-unsigned.apk");
+
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+
+        FreeStyleBuild build = testJenkins.buildAndAssertSuccess(job);
+        List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
+        Run.Artifact signedApkArtifact = artifacts.get(0);
+
+        assertThat(buildArtifact(build, signedApkArtifact), isSignedWith(KEY_STORE_ID, KEY_ALIAS));
+    }
+
+    @Test
+    public void failsWhenAliasIsNullAndMultipleKeysArePresent() {
+        fail("unimplemented");
     }
 
 }

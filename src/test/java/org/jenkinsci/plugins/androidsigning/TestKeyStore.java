@@ -19,22 +19,27 @@ import java.util.Base64;
 
 public class TestKeyStore implements TestRule {
 
+    public static final String KEY_STORE_RESOURCE = "/" + SignApksBuilderTest.class.getSimpleName() + ".p12";
     public static final String KEY_STORE_ID = SignApksBuilderTest.class.getSimpleName() + ".keyStore";
     public static final String KEY_ALIAS = SignApksBuilderTest.class.getSimpleName();
 
     public final JenkinsRule testJenkins;
+    public final String resourceName;
     public final String credentialsId;
     public final String description;
+    public final String password;
     public StandardCertificateCredentials credentials;
 
     TestKeyStore(JenkinsRule testJenkins) {
-        this(testJenkins, KEY_STORE_ID, "Main Test Key Store");
+        this(testJenkins, KEY_STORE_RESOURCE, KEY_STORE_ID, "Main Test Key Store", SignApksBuilderTest.class.getSimpleName());
     }
 
-    TestKeyStore(JenkinsRule testJenkins, String credentialsId, String description) {
+    TestKeyStore(JenkinsRule testJenkins, String resourceName, String credentialsId, String description, String password) {
         this.testJenkins = testJenkins;
+        this.resourceName = resourceName;
         this.credentialsId = credentialsId;
         this.description = description;
+        this.password = password;
     }
 
     @Override
@@ -58,12 +63,12 @@ public class TestKeyStore implements TestRule {
             return;
         }
         try {
-            InputStream keyStoreIn = SignApksBuilderTest.class.getResourceAsStream("/" + SignApksBuilderTest.class.getSimpleName() + ".p12");
+            InputStream keyStoreIn = SignApksBuilderTest.class.getResourceAsStream(resourceName);
             byte[] keyStoreBytes = new byte[keyStoreIn.available()];
             keyStoreIn.read(keyStoreBytes);
             String keyStore = new String(Base64.getEncoder().encode(keyStoreBytes), "utf-8");
             credentials = new CertificateCredentialsImpl(
-                CredentialsScope.GLOBAL, credentialsId, description, SignApksBuilderTest.class.getSimpleName(),
+                CredentialsScope.GLOBAL, credentialsId, description, password,
                 new CertificateCredentialsImpl.UploadedKeyStoreSource(keyStore));
             CredentialsStore store = CredentialsProvider.lookupStores(testJenkins.jenkins).iterator().next();
             store.addCredentials(Domain.global(), credentials);

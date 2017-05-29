@@ -271,34 +271,15 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         Map<String,String> apksToArchive = new LinkedHashMap<>();
 
         StandardCertificateCredentials keyStoreCredential = getKeystore(getKeyStoreId(), run.getParent());
-        char[] storePassword = keyStoreCredential.getPassword().getPlainText().toCharArray();
-        // TODO: add key password support
-        char[] keyPassword = storePassword;
-        KeyStore keyStore = keyStoreCredential.getKeyStore();
-        String alias = getKeyAlias();
-        PrivateKey key;
-        Certificate[] certChain;
+        SigningComponents signingParams;
         try {
-            if (getKeyAlias() == null) {
-                // TODO: search all entries to find key, throw error if multiple keys
-            }
-            key = (PrivateKey)keyStore.getKey(alias, keyPassword);
-            certChain = keyStore.getCertificateChain(alias);
+            signingParams = SigningComponents.fromCredentials(keyStoreCredential, getKeyAlias());
         }
         catch (GeneralSecurityException e) {
-            PrintWriter details = listener.fatalError("Error reading keystore " + getKeyStoreId());
-            e.printStackTrace(details);
-            throw new AbortException("Error reading keystore " + getKeyStoreId());
-        }
-
-        if (key == null || certChain == null) {
-            throw new AbortException("Alias " + alias +
-                " does not exist or does not point to a key and certificate in certificate credentials " + getKeyStoreId());
-        }
-
-        String v1SigName = alias;
-        if (v1SigName == null) {
-            v1SigName = keyStoreCredential.getId();
+            String message = "Error reading signing key from key store credential " + keyStoreCredential.getId() + ": " + e.getMessage();
+            listener.fatalError(message);
+            e.printStackTrace(listener.getLogger());
+            throw new AbortException(message);
         }
 
         Set<FilePath> matchedApks = new TreeSet<>(Comparator.comparing(FilePath::getRemote));
@@ -356,7 +337,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             if (!signedParent.exists()) {
                 signedParent.mkdirs();
             }
-            SignApkCallable signApk = new SignApkCallable(key, certChain, v1SigName, signedApk.getRemote(), listener);
+            SignApkCallable signApk = new SignApkCallable(signingParams.key, signingParams.certChain, signingParams.v1SigName, signedApk.getRemote(), listener);
             alignedApk.act(signApk);
 
             listener.getLogger().printf("[SignApksBuilder] signed APK %s%n", signedRelName);
