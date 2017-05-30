@@ -13,8 +13,6 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.util.Enumeration;
 
-import hudson.util.Secret;
-
 
 public class SigningComponents implements Serializable {
 
@@ -22,7 +20,8 @@ public class SigningComponents implements Serializable {
 
     public static SigningComponents fromCredentials(StandardCertificateCredentials creds, String keyAlias) throws GeneralSecurityException {
         KeyStore keyStore = creds.getKeyStore();
-        if (keyAlias == null) {
+        if (StringUtils.isEmpty(keyAlias)) {
+            keyAlias = null;
             Enumeration<String> aliases = keyStore.aliases();
             if (aliases != null) {
                 while (aliases.hasMoreElements()) {
@@ -51,11 +50,17 @@ public class SigningComponents implements Serializable {
             entry = (KeyStore.PrivateKeyEntry) keyStore.getEntry(keyAlias, protection);
         }
         catch(NullPointerException e) {
+            // empty passwords could be pessimistically handled, but this way if Credentials Plugin
+            // changes to load key stores (CertificateCredentialsImpl) with empty password instead
+            // of null, this should still work
             if (StringUtils.isEmpty(password)) {
                 throw new NullKeyStorePasswordException(
-                    "the password for key store credential " + creds.getId() + " is null - configure a non-empty password", e);
+                    "the password for key store credential " + creds.getId() + " is null - use the Credentials Plugin to configure a non-empty password", e);
             }
             throw e;
+        }
+        if (entry == null) {
+            throw new GeneralSecurityException("key store credential " + creds.getId() + " has no entry named " + keyAlias);
         }
         PrivateKey key = entry.getPrivateKey();
         Certificate[] certChain = entry.getCertificateChain();

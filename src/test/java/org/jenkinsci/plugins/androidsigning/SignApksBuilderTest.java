@@ -4,6 +4,7 @@ import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
+import com.gargoylesoftware.htmlunit.html.HtmlInput;
 import com.gargoylesoftware.htmlunit.html.HtmlOption;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlSelect;
@@ -21,6 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.security.GeneralSecurityException;
 import java.security.KeyStoreException;
 import java.security.UnrecoverableKeyException;
 import java.util.ArrayList;
@@ -56,6 +58,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isEmptyOrNullString;
+import static org.hamcrest.Matchers.isEmptyString;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.jenkinsci.plugins.androidsigning.ApkArtifactIsSignedMatcher.isSignedWith;
@@ -691,7 +694,7 @@ public class SignApksBuilderTest {
     }
 
     @Test
-    public void usesSingletonKeyEntryWhenAliasIsNull() throws Exception {
+    public void usesSingletonKeyEntryWhenAliasIsNullOrEmptyString() throws Exception {
 
         SignApksBuilder builder = new SignApksBuilder();
         builder.setKeyStoreId(KEY_STORE_ID);
@@ -706,6 +709,31 @@ public class SignApksBuilderTest {
         Run.Artifact signedApkArtifact = artifacts.get(0);
 
         assertThat(buildArtifact(build, signedApkArtifact), isSignedWith(KEY_STORE_ID, KEY_ALIAS));
+
+        builder.setKeyAlias("");
+        build = testJenkins.buildAndAssertSuccess(job);
+        artifacts = build.getArtifacts();
+        signedApkArtifact = artifacts.get(0);
+
+        assertThat(buildArtifact(build, signedApkArtifact), isSignedWith(KEY_STORE_ID, KEY_ALIAS));
+    }
+
+    @Test
+    public void givesMeaningfulErrorWhenKeyStoreDoesNotContainAlias() throws Exception {
+
+        SignApksBuilder builder = new SignApksBuilder();
+        builder.setKeyStoreId(KEY_STORE_ID);
+        builder.setKeyAlias("hurdur");
+        builder.setApksToSign("*-unsigned.apk");
+
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+
+        FreeStyleBuild build = testJenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0));
+        List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
+
+        testJenkins.assertLogContains(GeneralSecurityException.class.getName(), build);
+        testJenkins.assertLogContains(builder.getKeyAlias(), build);
     }
 
     @Test
@@ -758,4 +786,36 @@ public class SignApksBuilderTest {
         testJenkins.assertLogContains(UnrecoverableKeyException.class.getName(), build);
     }
 
+    @Test
+    public void keyAliasIsEmptyStringNotNullWhenKeyAliasFieldIsBlank() throws Exception {
+
+        SignApksBuilder original = new SignApksBuilder();
+        original.setKeyStoreId(KEY_STORE_ID);
+        original.setKeyAlias(null);
+        original.setApksToSign("**/*-unsigned.apk");
+        FreeStyleProject job = testJenkins.createFreeStyleProject();
+        job.getBuildersList().add(original);
+
+        // have to do this because Descriptor.calcFillSettings() fails outside the context of a Stapler web request
+        JenkinsRule.WebClient browser = testJenkins.createWebClient();
+        HtmlPage configPage = browser.getPage(job, "configure");
+        HtmlForm form = configPage.getFormByName("config");
+        HtmlInput keyAliasInput = form.getInputByName("_.keyAlias");
+        String aliasFromForm = keyAliasInput.getValueAttribute();
+
+        assertThat(aliasFromForm, isEmptyString());
+
+        testJenkins.submit(form);
+        configPage = browser.getPage(job, "configure");
+        form = configPage.getFormByName("config");
+        keyAliasInput = form.getInputByName("_.keyAlias");
+        aliasFromForm = keyAliasInput.getValueAttribute();
+
+        assertThat(aliasFromForm, isEmptyString());
+
+        job = testJenkins.jenkins.getItemByFullName(job.getFullName(), FreeStyleProject.class);
+        original = (SignApksBuilder) job.getBuildersList().get(0);
+
+        assertThat(original.getKeyAlias(), isEmptyString());
+    }
 }
