@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.security.KeyStoreException;
+import java.security.UnrecoverableKeyException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -708,8 +709,53 @@ public class SignApksBuilderTest {
     }
 
     @Test
-    public void failsWhenAliasIsNullAndMultipleKeysArePresent() {
-        fail("unimplemented");
+    public void supportsMultipleKeysInKeySotre() throws Exception {
+
+        TestKeyStore multiKeyStore = new TestKeyStore(testJenkins,
+            "/SignApksBuilderTestMulti.p12", "multiKey", null, "SignApksBuilderTest");
+        multiKeyStore.addCredentials();
+
+        SignApksBuilder builder = new SignApksBuilder();
+        builder.setKeyStoreId("multiKey");
+        builder.setKeyAlias("SignApksBuilderTest2");
+        builder.setApksToSign("*-unsigned.apk");
+
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+
+        FreeStyleBuild build = testJenkins.buildAndAssertSuccess(job);
+        List<Run<FreeStyleProject,FreeStyleBuild>.Artifact> artifacts = build.getArtifacts();
+        Run.Artifact signedApkArtifact = artifacts.get(0);
+
+        assertThat(buildArtifact(build, signedApkArtifact), isSignedWith("multiKey", "SignApksBuilderTest2"));
+
+        builder.setKeyAlias("SignApksBuilderTest");
+        build = testJenkins.buildAndAssertSuccess(job);
+        artifacts = build.getArtifacts();
+        signedApkArtifact = artifacts.get(0);
+
+        assertThat(buildArtifact(build, signedApkArtifact), isSignedWith("multiKey", "SignApksBuilderTest"));
+
+        multiKeyStore.removeCredentials();
+    }
+
+    @Test
+    public void failsWhenAliasIsNullAndMultipleKeysArePresent() throws Exception {
+
+        TestKeyStore multiKeyStore = new TestKeyStore(testJenkins,
+            "/SignApksBuilderTestMulti.p12", "multiKey", null, "SignApksBuilderTest");
+        multiKeyStore.addCredentials();
+
+        SignApksBuilder builder = new SignApksBuilder();
+        builder.setKeyStoreId("multiKey");
+        builder.setKeyAlias(null);
+        builder.setApksToSign("*-unsigned.apk");
+
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+        Run build = testJenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0));
+
+        testJenkins.assertLogContains(UnrecoverableKeyException.class.getName(), build);
     }
 
 }
