@@ -56,9 +56,10 @@ cannot install using the Jenkins UI.
 
 Before adding a _Sign APKs_ build step to a job, you must configure a certificate
 credential using the Credentials Plugin's UI.  As of this writing, this plugin
-requires a password-protected PKCS12 keystore containing a single private key entry
-protected by the same password.  This will probably change in a future version to
-allow password-free keys or keys with separate passwords.
+requires a password-protected PKCS12 keystore containing a private key entry
+protected by the same password.  Because of how the Credentials Plugin loads
+key stores, you must protect your key store with a non-empty password.  You
+were doing that anyway, right?
 
 This plugin will attempt to find the Android SDK's 
 [`zipalign`](https://developer.android.com/studio/command-line/zipalign.html)

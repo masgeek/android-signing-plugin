@@ -1,6 +1,12 @@
 # Jenkins Android Signing Plugin
 # Version History
 
+## 2.2.3 - 30 May 2017
+Minor bug fix/enhancement ([JENKINS-44428](https://issues.jenkins-ci.org/browse/JENKINS-44428))
+* Use the credentials ID in the _Key Store_ drop-down text if the credentials description is blank.
+* Added more meaningful error log messages when things go wrong reading the key store.
+* You can now leave the _Key Alias_ field blank/null when your key store only has one key entry.
+
 ## 2.2.2 - 19 May 2017
 Minor bug fix ([JENKINS-44299](https://issues.jenkins-ci.org/browse/JENKINS-44299))
 * The _Sign Android APKs_ build step form validation now catches the `InterruptedException` that occurs in the above issue,
@@ -34,6 +40,7 @@ Minor bug fix ([JENKINS-44299](https://issues.jenkins-ci.org/browse/JENKINS-4429
       signAndroidApks '**/*-unsigned.apk', {
         signedApkMapping { unsignedApkNameDir() }
       }
+    }
   }
   ```
 * Updated Pipeline/Workflow dependency to 2.0
