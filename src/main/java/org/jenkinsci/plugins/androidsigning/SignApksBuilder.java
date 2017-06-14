@@ -254,13 +254,26 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             return;
         }
 
-        EnvVars env;
-        if (run instanceof AbstractBuild) {
-            env = run.getEnvironment(listener);
-            env.overrideAll(((AbstractBuild<?,?>) run).getBuildVariables());
+        EnvVars env = new EnvVars();
+        Launcher.ProcStarter getEffectiveEnv = launcher.launch().pwd(workspace).cmdAsSingleString("echo \"resolving effective environment\"");
+        getEffectiveEnv.join();
+        String[] envLines = getEffectiveEnv.envs();
+        EnvVars shellEnv = new EnvVars();
+        for (String envVar : envLines) {
+            // fix double path separator Custom Tools seems to perpetrate
+            envVar.replaceAll(File.pathSeparator + "+", File.pathSeparator);
+            shellEnv.addLine(envVar);
         }
-        else {
-            env = new EnvVars();
+        /*
+         EnvVars.addLine() does not handle the += syntax, which the Custom Tools
+         plugin uses to append to PATH, so use overrideAll() method to handle that
+         syntax.
+         */
+        env.overrideAll(shellEnv);
+        if (run instanceof AbstractBuild) {
+            EnvVars runEnv = run.getEnvironment(listener);
+            env.overrideExpandingAll(runEnv);
+            env.overrideExpandingAll(((AbstractBuild<?,?>) run).getBuildVariables());
         }
 
         FilePath builderDir = workspace.child(BUILDER_DIR);

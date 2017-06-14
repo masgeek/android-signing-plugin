@@ -13,7 +13,9 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
+import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
+import org.jvnet.hudson.test.FakeLauncher;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.PretendSlave;
 import org.jvnet.hudson.test.WithoutJenkins;
@@ -33,14 +35,21 @@ import java.util.stream.Collectors;
 
 import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.Launcher;
+import hudson.Proc;
 import hudson.model.Build;
+import hudson.model.Descriptor;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Result;
 import hudson.model.Run;
+import hudson.model.TaskListener;
 import hudson.security.ACL;
+import hudson.slaves.ComputerLauncher;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
+import hudson.slaves.NodeProperty;
+import hudson.slaves.NodePropertyDescriptor;
 import jenkins.util.VirtualFile;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -70,7 +79,35 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 
+@SuppressWarnings("deprecation")
 public class SignApksBuilderTest {
+
+    static class DecoratingLauncherSlave extends PretendSlave {
+
+        private static final long serialVersionUID = 1L;
+
+        List<String> envLines = new ArrayList<>();
+
+        DecoratingLauncherSlave(String name, String remoteFS, String labelString, ComputerLauncher launcher, FakeLauncher faker) throws IOException, Descriptor.FormException {
+            super(name, remoteFS, labelString, launcher, faker);
+        }
+
+        DecoratingLauncherSlave decorateWithEnv(String envLine) {
+            envLines.add(envLine);
+            return this;
+        }
+
+        @Override
+        public Launcher createLauncher(TaskListener listener) {
+            Launcher launcher = super.createLauncher(listener);
+            return new Launcher.DecoratedLauncher(launcher) {
+                @Override
+                public Proc launch(ProcStarter starter) throws IOException {
+                    return getInner().launch(starter.envs(envLines.toArray(new String[envLines.size()])));
+                }
+            };
+        }
+    }
 
     private static BuildArtifact buildArtifact(FreeStyleBuild build, Run.Artifact artifact) {
         return new BuildArtifact(build, artifact);
@@ -88,6 +125,9 @@ public class SignApksBuilderTest {
 
     @Rule
     public RuleChain jenkinsChain = RuleChain.outerRule(testJenkins).around(keyStoreRule);
+
+    @Rule
+    public TemporaryFolder testDir = new TemporaryFolder();
 
     @Rule
     public TestName currentTestName = new TestName();
@@ -413,6 +453,48 @@ public class SignApksBuilderTest {
         testJenkins.buildAndAssertSuccess(job);
 
         assertThat(zipalignLauncher.lastProc.cmds().get(0), startsWith(zipalignOverride.getRemote()));
+    }
+
+    @Test
+    public void retrievesEnvVarsFromDecoratedLauncherForZipalignCommand() throws Exception {
+
+        FilePath decoratedZipalign = new FilePath(testDir.newFolder("decorated")).createTempFile("decorated-", "-zipalign");
+        DecoratingLauncherSlave decoratingSlave = new DecoratingLauncherSlave("decorating", testJenkins.createTmpDir().getPath(), "decorating", testJenkins.createComputerLauncher(null), zipalignLauncher)
+            .decorateWithEnv("ANDROID_ZIPALIGN=" + decoratedZipalign.getRemote());
+
+        synchronized (testJenkins.jenkins) {
+            testJenkins.jenkins.addNode(decoratingSlave);
+        }
+
+        SignApksBuilder builder = new SignApksBuilder();
+        builder.setKeyStoreId(KEY_STORE_ID);
+        builder.setApksToSign("*-unsigned.apk");
+        FreeStyleProject job = createSignApkJob();
+        job.setAssignedLabel(decoratingSlave.getSelfLabel());
+        job.getBuildersList().add(builder);
+        testJenkins.buildAndAssertSuccess(job);
+
+        assertThat(zipalignLauncher.lastProc.cmds().get(0), startsWith(decoratedZipalign.getRemote()));
+    }
+
+    @Test
+    public void abortsIfZipalignIsNotFound() throws Exception {
+
+        for (NodeProperty property : testJenkins.jenkins.getGlobalNodeProperties()) {
+            if (property instanceof EnvironmentVariablesNodeProperty) {
+                EnvironmentVariablesNodeProperty envProp = (EnvironmentVariablesNodeProperty)property;
+                envProp.getEnvVars().override("ANDROID_HOME", "/null_android");
+            }
+        }
+
+        SignApksBuilder builder = new SignApksBuilder();
+        builder.setKeyStoreId(KEY_STORE_ID);
+        builder.setApksToSign("*-unsigned.apk");
+        FreeStyleProject job = createSignApkJob();
+        job.getBuildersList().add(builder);
+
+        Run run = testJenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0));
+        testJenkins.assertLogContains("failed to find zipalign", run);
     }
 
     @Test
