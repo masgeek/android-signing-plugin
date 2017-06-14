@@ -61,24 +61,48 @@ protected by the same password.  Because of how the Credentials Plugin loads
 key stores, you must protect your key store with a non-empty password.  You
 were doing that anyway, right?
 
-This plugin will attempt to find the Android SDK's 
+This plugin requires access to the Android SDK's 
 [`zipalign`](https://developer.android.com/studio/command-line/zipalign.html)
-by way of the `ANDROID_HOME` environment variable.  It searches for the latest
-version of the `build-tools` package installed in your SDK.  Alternatively, 
-you can set the overriding `ANDROID_ZIPALIGN` environment variable to the path
-of the `zipalign` executable you prefer, e.g., 
-`${ANDROID_HOME}/build-tools/25.0.2/zipalign` (don't forget `.exe` for Windows).
-This therefore implies that whatever Jenkins node is performing the build has 
+command.  This implies that whatever Jenkins node is performing your build has 
 access to an installed Android SDK, which is likely the case if you built your 
 APK in a Jenkins job as well.
 
 Once the prerequisites are setup, you can now add the _Sign APKs_ build step to
 a job.  The configuration UI is fairly straight forward.  Select the certificate
 credential you created previously, supply the alias of the private key/certificate
-chain, and finally supply the name or [Ant-style glob](https://ant.apache.org/manual/dirtasks.html)
+chain (optional if you have only one key entry), and finally supply the name or 
+[Ant-style glob](https://ant.apache.org/manual/dirtasks.html)
 pattern specifying the APK files relative to the job workspace you want to sign.
 You can specify multiple glob patterns separated by commas if you wish.  For most
 projects `**/*-unsigned.apk` should suffice.
+
+![Sign Android APKs form](android-signing.png)
+
+You can tell a _Sign Android APKs_ build step the location of `zipalign`
+in the following ways, in order of precedence:
+1. _Zipalign Path_ form parameter (expands environment variable references, e.g., `${CUSTOM_ANDROID_ZIPALIGN}`)
+1. _ANDROID_HOME Override_ form parameter (expands environment variable references, e.g., `${CUSTOM_ANDROID_HOME}`)
+1. `ANDROID_ZIPALIGN`[build variable](http://javadoc.jenkins-ci.org/hudson/model/AbstractBuild.html#getBuildVariables--)
+1. `ANDROID_ZIPALIGN` [environment variable](http://javadoc.jenkins-ci.org/hudson/model/Run.html#getEnvironment-hudson.model.TaskListener-)
+1. `ANDROID_HOME` build variable
+1. `ANDROID_HOME` environment variable
+1. `PATH` environment variable
+    1. A directory in `PATH` containing a file called `zipalign`
+    1. A directory in `PATH` that appears to be an Android SDK home, i.e., contains the `android` or `sdkmanager` utilities
+    
+To access the first two override form parameters above, click the _Advanced_ button on the _Sign Android APKs_
+build step form group.
+    
+![Sign Android APKs form](android-signing-advanced.png)
+
+Environment variables can come from various plugins, such as 
+[Environment Injetor](https://wiki.jenkins-ci.org/display/JENKINS/EnvInject+Plugin) Plugin or
+[Custom Tools](https://plugins.jenkins.io/custom-tools-plugin) Plugin.  The plugin searches
+an Android SDK home directory by finding the latest version under the `build-tools` directory 
+installed in your SDK, and attempting to use the `zipalign` file that should be there, such
+as `${ANDROID_HOME}/build-tools/25.0.2/zipalign`.  Hence. be sure your Android SDK has the 
+_Build Tools_ package installed.  I recommend setting up the SDK using the Custom Tools Plugin.
+To cover the Windows case, the plugin will search for `zipalign.exe` as well.
 
 Note that this plugin assumes your Android build has produced an unsigned, 
 unaligned APK.  If you are using the Gradle Android plugin to build your APK, 

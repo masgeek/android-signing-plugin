@@ -1,6 +1,18 @@
 # Jenkins Android Signing Plugin
 # Version History
 
+## 2.2.4 - 14 June 2017
+Enhancements
+* Attempt to retrieve environment variables from a dummy process to find the `zipalign` utility.  
+  As a result, you can use the [Custom Tools](https://plugins.jenkins.io/custom-tools-plugin) Plugin 
+  to install the Android SDK and export `ANDROID_HOME` environment variable.  This is necessary 
+  because the Custom Tool plugin only adds environment variables to 
+  [launched](http://javadoc.jenkins-ci.org/hudson/Launcher.DecoratedLauncher.html) processes for a build, 
+  e.g., an _Execute shell_ build step.
+* Search the `PATH` variable for the `zipalign` utility and potential Android SDK installations.  This
+  suggestion comes from [JENKINS-41787](https://issues.jenkins-ci.org/browse/JENKINS-41787).
+
+
 ## 2.2.3 - 30 May 2017
 Minor bug fix/enhancement ([JENKINS-44428](https://issues.jenkins-ci.org/browse/JENKINS-44428))
 * Use the credentials ID in the _Key Store_ drop-down text if the credentials description is blank.
