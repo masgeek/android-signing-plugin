@@ -261,7 +261,7 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
         EnvVars shellEnv = new EnvVars();
         for (String envVar : envLines) {
             // fix double path separator Custom Tools seems to perpetrate
-            envVar.replaceAll(File.pathSeparator + "+", File.pathSeparator);
+            envVar = envVar.replaceAll(File.pathSeparator + "+", File.pathSeparator);
             shellEnv.addLine(envVar);
         }
         /*
