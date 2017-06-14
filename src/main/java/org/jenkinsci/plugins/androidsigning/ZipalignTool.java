@@ -95,6 +95,7 @@ class ZipalignTool {
     private static FilePath findInPathEnvVar(String envPath, FilePath workspace, PrintStream logger) throws AbortException {
         String[] dirs = envPath.split(File.pathSeparator);
         for (String dir : dirs) {
+            logger.printf("[SignApksBuilder] checking %s dir %s for zipalign...%n", ENV_PATH, dir);
             FilePath dirPath = workspace.child(dir);
             FilePath zipalign = zipalignOrZipalignExe(dirPath, logger);
             if (zipalign != null) {
@@ -108,6 +109,7 @@ class ZipalignTool {
                 e.printStackTrace(logger);
             }
             if (dirPath != null) {
+                logger.printf("[SignApksBuilder] found potential Android home in %s dir %s%n", ENV_PATH, dir);
                 try {
                     return findInAndroidHome(dirPath.getRemote(), workspace, logger);
                 }

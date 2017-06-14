@@ -323,4 +323,21 @@ public class ZipalignToolTest {
         assertThat(cmd.toString(), startsWith(suffixedZipalign.getRemote()));
     }
 
+    @Test
+    public void resolvesVariableReferencesInExplicitParameters() throws Exception {
+        EnvVars env = new EnvVars();
+        env.put("ALT_ZIPALIGN", altZipalign.getRemote());
+        ZipalignTool zipalign = new ZipalignTool(env, workspace, System.out, null, "${ALT_ZIPALIGN}");
+        ArgumentListBuilder cmd = zipalign.commandFor("test.apk", "test-aligned.apk");
+
+        assertThat(cmd.toString(), startsWith(altZipalign.getRemote()));
+
+        env.clear();
+        env.put("ALT_ANDROID_HOME", androidHome.getRemote());
+        zipalign = new ZipalignTool(env, workspace, System.out, "${ALT_ANDROID_HOME}", null);
+        cmd = zipalign.commandFor("test.apk", "test-aligned.apk");
+
+        assertThat(cmd.toString(), startsWith(androidHomeZipalign.getRemote()));
+    }
+
 }
