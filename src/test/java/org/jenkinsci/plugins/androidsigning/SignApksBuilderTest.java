@@ -19,6 +19,7 @@ import org.jvnet.hudson.test.FakeLauncher;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.PretendSlave;
 import org.jvnet.hudson.test.WithoutJenkins;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,13 +32,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import hudson.EnvVars;
+import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Proc;
+import hudson.model.AbstractBuild;
+import hudson.model.AbstractProject;
 import hudson.model.Build;
+import hudson.model.BuildListener;
 import hudson.model.Descriptor;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
@@ -49,7 +55,8 @@ import hudson.security.ACL;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.slaves.NodeProperty;
-import hudson.slaves.NodePropertyDescriptor;
+import hudson.tasks.BuildWrapper;
+import hudson.tasks.BuildWrapperDescriptor;
 import jenkins.util.VirtualFile;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -76,36 +83,58 @@ import static org.jenkinsci.plugins.androidsigning.TestKeyStore.KEY_STORE_ID;
 import static org.jenkinsci.plugins.androidsigning.TestKeyStore.KEY_STORE_RESOURCE;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 
 @SuppressWarnings("deprecation")
 public class SignApksBuilderTest {
 
-    static class DecoratingLauncherSlave extends PretendSlave {
+    public static class CustomToolTestWrapper extends BuildWrapper {
 
-        private static final long serialVersionUID = 1L;
+        private final String[] extraEnv;
 
-        List<String> envLines = new ArrayList<>();
-
-        DecoratingLauncherSlave(String name, String remoteFS, String labelString, ComputerLauncher launcher, FakeLauncher faker) throws IOException, Descriptor.FormException {
-            super(name, remoteFS, labelString, launcher, faker);
+        @DataBoundConstructor
+        public CustomToolTestWrapper(String... extraEnv) {
+            this.extraEnv = extraEnv;
         }
 
-        DecoratingLauncherSlave decorateWithEnv(String envLine) {
-            envLines.add(envLine);
-            return this;
+        public Descriptor<BuildWrapper> getDescriptor() {
+            return DESCRIPTOR;
         }
 
         @Override
-        public Launcher createLauncher(TaskListener listener) {
-            Launcher launcher = super.createLauncher(listener);
+        public Environment setUp(AbstractBuild build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
+            return new BuildWrapper.Environment() {
+                @Override
+                public void buildEnvVars(Map<String, String> env) {
+                    env.remove("ANDROID_HOME");
+                }
+            };
+        }
+
+        @Override
+        public Launcher decorateLauncher(AbstractBuild build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException, Run.RunnerAbortedException {
+
+            build.getEnvironment(listener);
+
             return new Launcher.DecoratedLauncher(launcher) {
                 @Override
                 public Proc launch(ProcStarter starter) throws IOException {
-                    return getInner().launch(starter.envs(envLines.toArray(new String[envLines.size()])));
+                    return getInner().launch(starter.envs(extraEnv));
                 }
             };
+        }
+
+        @Extension
+        public static final DescriptorImpl DESCRIPTOR = new DescriptorImpl();
+
+        public static final class DescriptorImpl extends BuildWrapperDescriptor {
+            public DescriptorImpl() {
+                super(CustomToolTestWrapper.class);
+            }
+            @Override
+            public boolean isApplicable(AbstractProject<?,?> item) {
+                return true;
+            }
         }
     }
 
@@ -122,6 +151,7 @@ public class SignApksBuilderTest {
     private PretendSlave slave = null;
     private JenkinsRule testJenkins = new JenkinsRule();
     private TestKeyStore keyStoreRule = new TestKeyStore(testJenkins);
+    private EnvironmentVariablesNodeProperty androidHomeEnvProp = null;
 
     @Rule
     public RuleChain jenkinsChain = RuleChain.outerRule(testJenkins).around(keyStoreRule);
@@ -137,12 +167,12 @@ public class SignApksBuilderTest {
         if (testJenkins.jenkins == null) {
             return;
         }
-        EnvironmentVariablesNodeProperty prop = new EnvironmentVariablesNodeProperty();
-        EnvVars envVars = prop.getEnvVars();
+        androidHomeEnvProp = new EnvironmentVariablesNodeProperty();
+        EnvVars envVars = androidHomeEnvProp.getEnvVars();
         URL androidHomeUrl = getClass().getResource("/android");
         String androidHomePath = androidHomeUrl.getPath();
         envVars.put("ANDROID_HOME", androidHomePath);
-        testJenkins.jenkins.getGlobalNodeProperties().add(prop);
+        testJenkins.jenkins.getGlobalNodeProperties().add(androidHomeEnvProp);
         androidHome = new FilePath(new File(androidHomeUrl.toURI()));
 
         // add a slave so i can use my fake launcher
@@ -458,19 +488,27 @@ public class SignApksBuilderTest {
     @Test
     public void retrievesEnvVarsFromDecoratedLauncherForZipalignCommand() throws Exception {
 
-        FilePath decoratedZipalign = new FilePath(testDir.newFolder("decorated")).createTempFile("decorated-", "-zipalign");
-        DecoratingLauncherSlave decoratingSlave = new DecoratingLauncherSlave("decorating", testJenkins.createTmpDir().getPath(), "decorating", testJenkins.createComputerLauncher(null), zipalignLauncher)
-            .decorateWithEnv("ANDROID_ZIPALIGN=" + decoratedZipalign.getRemote());
+        testJenkins.jenkins.getGlobalNodeProperties().remove(androidHomeEnvProp);
 
-        synchronized (testJenkins.jenkins) {
-            testJenkins.jenkins.addNode(decoratingSlave);
-        }
+        FilePath decoratedZipalign = new FilePath(testDir.newFolder("decorated")).child("zipalign");
+        decoratedZipalign.getParent().mkdirs();
+        decoratedZipalign.touch(0);
 
         SignApksBuilder builder = new SignApksBuilder();
         builder.setKeyStoreId(KEY_STORE_ID);
         builder.setApksToSign("*-unsigned.apk");
         FreeStyleProject job = createSignApkJob();
-        job.setAssignedLabel(decoratingSlave.getSelfLabel());
+        job.getBuildWrappersList().add(new CustomToolTestWrapper("PATH+=" + decoratedZipalign.getParent().getRemote()));
+        job.getBuildersList().add(builder);
+        testJenkins.buildAndAssertSuccess(job);
+
+        assertThat(zipalignLauncher.lastProc.cmds().get(0), startsWith(decoratedZipalign.getRemote()));
+
+        builder = new SignApksBuilder();
+        builder.setKeyStoreId(KEY_STORE_ID);
+        builder.setApksToSign("*-unsigned.apk");
+        job.getBuildWrappersList().remove(CustomToolTestWrapper.class);
+        job.getBuildWrappersList().add(new CustomToolTestWrapper("ANDROID_ZIPALIGN=" + decoratedZipalign.getRemote()));
         job.getBuildersList().add(builder);
         testJenkins.buildAndAssertSuccess(job);
 

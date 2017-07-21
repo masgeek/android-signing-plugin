@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
 import java.security.GeneralSecurityException;
-import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
@@ -254,27 +253,33 @@ public class SignApksBuilder extends Builder implements SimpleBuildStep {
             return;
         }
 
-        EnvVars env = new EnvVars();
-        Launcher.ProcStarter getEffectiveEnv = launcher.launch().pwd(workspace).cmdAsSingleString("echo \"resolving effective environment\"");
-        getEffectiveEnv.join();
+        ArgumentListBuilder command = new ArgumentListBuilder().add("echo").addQuoted("resolving effective environment");
+        command.toWindowsCommand();
+        if (!launcher.isUnix()) {
+            command = command.toWindowsCommand();
+        }
+        // force the Custom Tools plugin to inject the custom tools env vars via its DecoratedLauncher
+        Launcher.ProcStarter getEffectiveEnv = launcher.launch().pwd(workspace).cmds(command);
+        try {
+            getEffectiveEnv.join();
+        }
+        catch (Exception e) {
+            listener.getLogger().println("[SignApksBuilder] error resolving effective script environment, but this does not necessarily fail your build:");
+            e.printStackTrace(listener.getLogger());
+        }
         String[] envLines = getEffectiveEnv.envs();
         EnvVars shellEnv = new EnvVars();
         for (String envVar : envLines) {
-            // fix double path separator Custom Tools seems to perpetrate
-            envVar = envVar.replaceAll(File.pathSeparator + "+", File.pathSeparator);
             shellEnv.addLine(envVar);
         }
-        /*
-         EnvVars.addLine() does not handle the += syntax, which the Custom Tools
-         plugin uses to append to PATH, so use overrideAll() method to handle that
-         syntax.
-         */
-        env.overrideAll(shellEnv);
+
+        EnvVars env = new EnvVars();
         if (run instanceof AbstractBuild) {
             EnvVars runEnv = run.getEnvironment(listener);
             env.overrideExpandingAll(runEnv);
             env.overrideExpandingAll(((AbstractBuild<?,?>) run).getBuildVariables());
         }
+        env.overrideAll(shellEnv);
 
         FilePath builderDir = workspace.child(BUILDER_DIR);
         FilePath zipalignDir = builderDir.child("zipalign");

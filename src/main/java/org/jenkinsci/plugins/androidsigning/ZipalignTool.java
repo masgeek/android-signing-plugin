@@ -2,7 +2,7 @@ package org.jenkinsci.plugins.androidsigning;
 
 import org.apache.commons.lang.StringUtils;
 
-import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.SortedMap;
@@ -93,7 +93,15 @@ class ZipalignTool {
     }
 
     private static FilePath findInPathEnvVar(String envPath, FilePath workspace, PrintStream logger) throws AbortException {
-        String[] dirs = envPath.split(File.pathSeparator);
+        String separator = null;
+        try {
+            separator = pathSeparatorForWorkspace(workspace);
+        }
+        catch (Exception e) {
+            logger.println("[SignApksBuilder] error determining path separator:");
+            e.printStackTrace(logger);
+        }
+        String[] dirs = envPath.split(separator);
         for (String dir : dirs) {
             logger.printf("[SignApksBuilder] checking %s dir %s for zipalign...%n", ENV_PATH, dir);
             FilePath dirPath = workspace.child(dir);
@@ -120,6 +128,10 @@ class ZipalignTool {
         }
 
         return null;
+    }
+
+    private static String pathSeparatorForWorkspace(FilePath workspace) throws IOException, InterruptedException {
+        return workspace.act(new GetPathSeparator());
     }
 
     private static FilePath androidHomeAncestorOfPath(FilePath path) throws Exception {
@@ -180,15 +192,15 @@ class ZipalignTool {
         return null;
     }
 
-    private final EnvVars env;
+    private final EnvVars buildEnv;
     private final FilePath workspace;
     private final PrintStream logger;
     private final String overrideAndroidHome;
     private final String overrideZipalignPath;
     private FilePath zipalign;
 
-    ZipalignTool(@Nonnull EnvVars env, @Nonnull FilePath workspace, @Nonnull PrintStream logger, @Nullable String overrideAndroidHome, @Nullable String overrideZipalignPath) {
-        this.env = env;
+    ZipalignTool(@Nonnull EnvVars buildEnv, @Nonnull FilePath workspace, @Nonnull PrintStream logger, @Nullable String overrideAndroidHome, @Nullable String overrideZipalignPath) {
+        this.buildEnv = buildEnv;
         this.workspace = workspace;
         this.logger = logger;
         this.overrideAndroidHome = overrideAndroidHome;
@@ -199,15 +211,15 @@ class ZipalignTool {
         if (zipalign == null) {
             if (!StringUtils.isEmpty(overrideZipalignPath)) {
                 logger.printf("[SignApksBuilder] zipalign path explicitly set to %s%n", overrideZipalignPath);
-                zipalign = zipalignOrZipalignExe(workspace.child(env.expand(overrideZipalignPath)), logger);
+                zipalign = zipalignOrZipalignExe(workspace.child(buildEnv.expand(overrideZipalignPath)), logger);
             }
             else if (!StringUtils.isEmpty(overrideAndroidHome)) {
                 logger.printf("[SignApksBuilder] zipalign %s explicitly set to %s%n", ENV_ANDROID_HOME, overrideAndroidHome);
-                String expandedAndroidHome = env.expand(overrideAndroidHome);
+                String expandedAndroidHome = buildEnv.expand(overrideAndroidHome);
                 zipalign = findInAndroidHome(expandedAndroidHome, workspace, this.logger);
             }
             else {
-                zipalign = findFromEnv(env, workspace, logger);
+                zipalign = findFromEnv(buildEnv, workspace, logger);
             }
 
             if (zipalign == null) {
