@@ -100,6 +100,7 @@ class ZipalignTool {
         catch (Exception e) {
             logger.println("[SignApksBuilder] error determining path separator:");
             e.printStackTrace(logger);
+            return null;
         }
         String[] dirs = envPath.split(separator);
         for (String dir : dirs) {
