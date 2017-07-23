@@ -111,7 +111,7 @@ class ZipalignTool {
                 return zipalign;
             }
             try {
-                dirPath = androidHomeAncestorOfPath(dirPath);
+                dirPath = androidHomeAncestorOfPath(dirPath, logger);
             }
             catch (Exception e) {
                 logger.println("error searching " + ENV_PATH + " environment variable: " + e.getMessage());
@@ -135,10 +135,10 @@ class ZipalignTool {
         return workspace.act(new GetPathSeparator());
     }
 
-    private static FilePath androidHomeAncestorOfPath(FilePath path) throws Exception {
+    private static FilePath androidHomeAncestorOfPath(FilePath path, PrintStream logger) throws Exception {
         if ("bin".equals(path.getName())) {
             FilePath sdkmanager = path.child("sdkmanager");
-            if (sdkmanager.exists()) {
+            if (commandOrWinCommandAtPath(sdkmanager, logger) != null) {
                 path = path.getParent();
                 if (path != null && "tools".equals(path.getName())) {
                     return path.getParent();
@@ -147,20 +147,25 @@ class ZipalignTool {
         }
         else if ("tools".equals(path.getName())) {
             FilePath androidTool = path.child("android");
-            if (androidTool.exists()) {
+            if (commandOrWinCommandAtPath(androidTool, logger) != null) {
                 return path.getParent();
             }
         }
-        else if (path.child("tools").child("android").exists()) {
-            return path;
+        else {
+            FilePath androidTool = path.child("tools").child("android");
+            if (commandOrWinCommandAtPath(androidTool, logger) != null) {
+                return path;
+            }
         }
 
         return null;
     }
 
     private static FilePath zipalignOrZipalignExe(FilePath zipalignOrDir, PrintStream logger) {
+        FilePath parent = zipalignOrDir.getParent();
         try {
             if (zipalignOrDir.isDirectory()) {
+                parent = zipalignOrDir;
                 zipalignOrDir = zipalignOrDir.child("zipalign");
             }
         }
@@ -168,27 +173,40 @@ class ZipalignTool {
             logger.println("[SignApksBuilder] error checking for zipalign at path " + zipalignOrDir);
             e.printStackTrace(logger);
         }
-        try {
-            if (zipalignOrDir.exists()) {
-                return zipalignOrDir;
-            }
-        }
-        catch (Exception e) {
-            logger.println("[SignApksBuilder] error checking for zipalign at path " + zipalignOrDir);
-            e.printStackTrace(logger);
-        }
-        try {
-            zipalignOrDir = zipalignOrDir.getParent().child("zipalign.exe");
-            if (zipalignOrDir.exists()) {
-                return zipalignOrDir;
-            }
-        }
-        catch (Exception e) {
-            logger.println("[SignApksBuilder] error checking for zipalign.exe at path " + zipalignOrDir);
-            e.printStackTrace(logger);
+        zipalignOrDir = commandOrWinCommandAtPath(zipalignOrDir, logger);
+        if (zipalignOrDir != null) {
+            return zipalignOrDir;
         }
 
-        logger.println("[SignApksBuilder] no zipalign found at path " + zipalignOrDir);
+        logger.println("[SignApksBuilder] no zipalign or zipalign.exe found in path " + parent);
+        return null;
+    }
+
+    private static FilePath commandOrWinCommandAtPath(FilePath path, PrintStream logger) {
+        try {
+            if (path.isDirectory()) {
+                return null;
+            }
+            if (path.exists()) {
+                return path;
+            }
+            FilePath parent = path.getParent();
+            String name = path.getName();
+            String winCommand = name + ".exe";
+            path = parent.child(winCommand);
+            if (path.exists()) {
+                return path;
+            }
+            winCommand = name + ".bat";
+            path = parent.child(winCommand);
+            if (path.exists()) {
+                return path;
+            }
+        }
+        catch (Exception e) {
+            logger.println("[SignApksBuilder] error checking path " + path);
+            e.printStackTrace(logger);
+        }
 
         return null;
     }

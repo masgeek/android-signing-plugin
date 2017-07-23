@@ -340,4 +340,16 @@ public class ZipalignToolTest {
         assertThat(cmd.toString(), startsWith(androidHomeZipalign.getRemote()));
     }
 
+    @Test
+    public void findsWindowsZipalignFromEnvPath() throws Exception {
+        URL url = getClass().getResource("/win-android");
+        FilePath winAndroidHome = new FilePath(new File(url.toURI()));
+        EnvVars env = new EnvVars();
+        env.put("PATH", winAndroidHome.getRemote());
+
+        ZipalignTool zipalign = new ZipalignTool(env, workspace, System.out, null, null);
+        ArgumentListBuilder cmd = zipalign.commandFor("test.apk", "test-aligned.apk");
+
+        assertThat(cmd.toString(), startsWith(winAndroidHome.getRemote()));
+    }
 }
