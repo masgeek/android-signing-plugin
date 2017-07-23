@@ -1,6 +1,13 @@
 # Jenkins Android Signing Plugin
 # Version History
 
+## 2.2.5 - 23 July 2017
+* Fix [JENKINS-45714](https://issues.jenkins-ci.org/browse/JENKINS-45714)
+  * Added missing concerns for finding the `zipalign.exe` command and Android SDK on Windows.
+* Properly override the build environment with the effective launched process environment so 
+  the plugin can find `zipalign` from a [custom tool](https://plugins.jenkins.io/custom-tools-plugin)
+  exported `PATH` element.
+  
 ## 2.2.4 - 14 June 2017
 Enhancements
 * Attempt to retrieve environment variables from a dummy process to find the `zipalign` utility.  
@@ -11,7 +18,6 @@ Enhancements
   e.g., an _Execute shell_ build step.
 * Search the `PATH` variable for the `zipalign` utility and potential Android SDK installations.  This
   suggestion comes from [JENKINS-41787](https://issues.jenkins-ci.org/browse/JENKINS-41787).
-
 
 ## 2.2.3 - 30 May 2017
 Minor bug fix/enhancement ([JENKINS-44428](https://issues.jenkins-ci.org/browse/JENKINS-44428))
