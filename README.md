@@ -107,27 +107,26 @@ To cover the Windows case, the plugin will search for `zipalign.exe` as well.
 Note that this plugin assumes your Android build has produced an unsigned, 
 unaligned APK.  If you are using the Gradle Android plugin to build your APK, 
 that means a previous Jenkins build step probably invoked the `assembleRelease` 
-task on your build script and there were no `signingConfig` blocks that applied 
-to your APK.  In that case Gradle will have produced the necessary unsigned, 
-unaligned APK, ready for the Android Signing Plugin to sign.  Your unsigned 
-APK will then likely have the standard `-unsigned.apk` suffix, in which case the
-plugin will replace the `-unsigned` component with `-signed` on the output APK.
-Otherwise, the plugin will just insert `-signed` before `.apk` in the unsigned 
-APK name.
+task on your build script and there were no [`signingConfig`](https://developer.android.com/studio/publish/app-signing.html#gradle-sign)
+blocks that applied to your APK.  In that case Gradle will have produced the 
+necessary unsigned, unaligned APK, ready for the Android Signing Plugin to sign.  
 
 ### Output Signed APKs
 
-As of version 2.2.0, there two choices for the location where a _Sign APKs_ build
+As of version 2.2.0, there are two choices for the location where a _Sign APKs_ build
 step will write signed APKs.  You can change this behavior by clicking the _Advanced_
 button in the _Sign APKs_ step form group of a Freestyle job, and checking the desired
 radio button in the _Signed APK Destination_ group.  
 * _Output to unsigned APK sibling_ - The new and default choice writes the signed APK to 
-the same directory where the input unsigned APK resides.  This option is useful when you
-want to use your Gradle build script to do something like publish the signed APK, 
-because the signed APK ends up in the same location the Android Gradle plugin would have 
-placed it.  The signed APK file name will only have a `-signed` component if the input
-unsigned APK has the standard `-unsigned` component, as the Android Gradle plugin's signed
-APKs do have a `-signed` component.
+the same directory where the input unsigned APK resides, the same as the standard Android 
+Gradle build would do.  This option is useful when you want to use your Gradle build script
+to do something like publish the signed APK in a Gradle build step after your _Sign APKs_ 
+build step runs.  The standard Gradle Android plugin build should produce an unsigned APK 
+named with the `-unsigned.apk` suffix.  In that case, the _Android Signing Plugin_ plugin 
+will simply remove the `-unsigned` component to create the signed APK file name.  Otherwise, 
+the plugin will insert `-signed` before `.apk` in the unsigned APK name.  For example, 
+`myApp-release-unsigned.apk` becomes `myApp-release.apk`, whereas `myApp-forElmo.apk` 
+becomes `myApp-forElmo-signed.apk`.
 * _Output to separate directory_ - The original behavior writes signed APKs to a
 directory named like `SignApksBuilder-out/my-app-unsigned.apk/my-app-signed.apk`,
 where `my-app-unsigned.apk` is a directory named after the unsigned input APK.
