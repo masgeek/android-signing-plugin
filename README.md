@@ -54,7 +54,7 @@ cannot install using the Jenkins UI.
 
 ## Usage
 
-Before adding a _Sign APKs_ build step to a job, you must configure a certificate
+Before adding a _Sign Android APKs_ build step to a job, you must configure a certificate
 credential using the Credentials Plugin's UI.  As of this writing, this plugin
 requires a password-protected PKCS12 keystore containing a private key entry
 protected by the same password.  Because of how the Credentials Plugin loads
@@ -67,7 +67,7 @@ command.  This implies that whatever Jenkins node is performing your build has
 access to an installed Android SDK, which is likely the case if you built your 
 APK in a Jenkins job as well.
 
-Once the prerequisites are setup, you can now add the _Sign APKs_ build step to
+Once the prerequisites are setup, you can now add the _Sign Android APKs_ build step to
 a job.  The configuration UI is fairly straight forward.  Select the certificate
 credential you created previously, supply the alias of the private key/certificate
 chain (optional if you have only one key entry), and finally supply the name or 
@@ -80,8 +80,8 @@ projects `**/*-unsigned.apk` should suffice.
 
 You can tell a _Sign Android APKs_ build step the location of `zipalign`
 in the following ways, in order of precedence:
-1. _Zipalign Path_ form parameter (expands environment variable references, e.g., `${CUSTOM_ANDROID_ZIPALIGN}`)
-1. _ANDROID_HOME Override_ form parameter (expands environment variable references, e.g., `${CUSTOM_ANDROID_HOME}`)
+1. _Zipalign Path_ form input (expands environment variable references, e.g., `${CUSTOM_ANDROID_ZIPALIGN}`)
+1. _ANDROID_HOME Override_ form input (expands environment variable references, e.g., `${CUSTOM_ANDROID_HOME}`)
 1. `ANDROID_ZIPALIGN`[build variable](http://javadoc.jenkins-ci.org/hudson/model/AbstractBuild.html#getBuildVariables--)
 1. `ANDROID_ZIPALIGN` [environment variable](http://javadoc.jenkins-ci.org/hudson/model/Run.html#getEnvironment-hudson.model.TaskListener-)
 1. `ANDROID_HOME` build variable
@@ -113,14 +113,14 @@ necessary unsigned, unaligned APK, ready for the Android Signing Plugin to sign.
 
 ### Output Signed APKs
 
-As of version 2.2.0, there are two choices for the location where a _Sign APKs_ build
+As of version 2.2.0, there are two choices for the location where a _Sign Android APKs_ build
 step will write signed APKs.  You can change this behavior by clicking the _Advanced_
-button in the _Sign APKs_ step form group of a Freestyle job, and checking the desired
+button in the _Sign Android APKs_ step form group of a Freestyle job, and checking the desired
 radio button in the _Signed APK Destination_ group.  
 * _Output to unsigned APK sibling_ - The new and default choice writes the signed APK to 
 the same directory where the input unsigned APK resides, the same as the standard Android 
 Gradle build would do.  This option is useful when you want to use your Gradle build script
-to do something like publish the signed APK in a Gradle build step after your _Sign APKs_ 
+to do something like publish the signed APK in a Gradle build step after your _Sign Android APKs_ 
 build step runs.  The standard Gradle Android plugin build should produce an unsigned APK 
 named with the `-unsigned.apk` suffix.  In that case, the _Android Signing Plugin_ plugin 
 will simply remove the `-unsigned` component to create the signed APK file name.  Otherwise, 
@@ -168,7 +168,7 @@ context; this plugin assumes the Pipeline step will have a workspace available.
 ### Job DSL
 
 This plugin offers a [Job DSL](https://github.com/jenkinsci/job-dsl-plugin/wiki) extension.
-You can include a _Sign APKs_ build step in the `steps` context of a Job DSL script:
+You can include a _Sign Android APKs_ build step in the `steps` context of a Job DSL script:
 ```
 freeStyleJob('myApp.seed') {
     scm {
